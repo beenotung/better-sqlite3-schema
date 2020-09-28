@@ -19,7 +19,7 @@
     "prebuild": "npm run clean",
     "build": "tsc -p tsconfig.build.json",
     "pretest": "npm run format && npm run build",
-    "rawtest": "ts-node test/index.ts && jest",
+    "rawtest": "ts-node test/index.ts && jest -i ./test/.*.test.ts",
     "prepublishOnly": "npm run rawtest && npm run build"
   },
   "husky": {
@@ -30,14 +30,25 @@
   "directories": {
     "test": "test"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beenotung/binary-object.git"
+  },
+  "bugs": {
+    "url": "https://github.com/beenotung/binary-object/issues"
+  },
+  "homepage": "https://github.com/beenotung/binary-object#readme",
   "files": [
     "dist"
   ],
   "dependencies": {
-    "@beenotung/tslib": "^16.35.0",
+    "better-sqlite3": "^7.1.0",
+    "better-sqlite3-helper": "^3.1.0",
     "tslib": "^2.0.1"
   },
   "devDependencies": {
+    "@beenotung/tslib": "^16.35.0",
+    "@types/better-sqlite3": "^5.4.0",
     "@types/jest": "^26.0.14",
     "@types/node": "*",
     "husky": "^4.3.0",
