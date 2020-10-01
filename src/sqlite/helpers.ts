@@ -3,13 +3,14 @@ import { BetterSqlite3Helper } from 'better-sqlite3-helper'
 import { Cache, newCache } from '../utils/cache'
 import { identical } from '../utils/function'
 
-type DB = BetterSqlite3Helper.DBInstance
+export type DB = BetterSqlite3Helper.DBInstance
 
 export type TableSchema = {
   table: string
   skipFields?: string[]
   refFields?: Array<string | RefFieldSchema>
   cacheFields?: string[]
+  cacheSize?: number
   whitelistFields?: string[]
   idFieldSuffix?: string
 }
@@ -19,10 +20,30 @@ export type RefFieldSchema = {
   cache?: Cache<number>
   cacheSize?: number
 }
+type RefField = {
+  field: string
+  idField: string
+  select: Statement
+  insert: Statement
+  getRefIdFn: GetRefIdFn
+}
+type GetRefIdFn = (
+  fieldData: any,
+  select: Statement,
+  insert: Statement,
+) => number
 
 export type InsertRowFn = (row: any) => any
 
-export function makeInsertRowFn(schema: TableSchema, db: DB): InsertRowFn {
+export type MakeInsertRowFnOptions = {
+  inplaceUpdateRefField?: boolean
+}
+
+export function makeInsertRowFn(
+  db: DB,
+  schema: TableSchema,
+  options?: MakeInsertRowFnOptions,
+): InsertRowFn {
   if (schema.whitelistFields) {
     return makeInsertRowFnWithWhitelistFields(schema.whitelistFields)
   }
@@ -33,8 +54,9 @@ export function makeInsertRowFn(schema: TableSchema, db: DB): InsertRowFn {
   let refFieldsFn: InsertRowFn | undefined
   if (schema.refFields) {
     refFieldsFn = makeInsertRowFnWithRefFields(
-      { ...schema, refFields: schema.refFields },
       db,
+      { ...schema, refFields: schema.refFields },
+      options || {},
     )
   }
   if (skipFieldsFn && refFieldsFn) {
@@ -61,97 +83,101 @@ function makeInsertRowFnWithSkipFields(skipFields: string[]): InsertRowFn {
   }
 }
 
-type RefField = {
-  field: string
-  idField: string
-  getRefIdFn: GetRefIdFn
-}
-type GetRefIdFn = (
-  fieldData: any,
-  select: Statement,
-  insert: Statement,
-) => number
-
-function makeRefField(
-  refField: string | RefFieldSchema,
-  idFieldSuffix: string,
-): RefField {
-  if (typeof refField === 'string') {
-    return {
-      field: refField,
-      idField: refField + idFieldSuffix,
-      getRefIdFn: insertOrReference,
-    }
-  }
-  const field = refField.field
-  const idField = refField.idField || field + idFieldSuffix
-  let getRefIdFn: GetRefIdFn
-  if (refField.cache) {
-    getRefIdFn = makeCachedInsertOrReference(refField.cache)
-  } else if (refField.cacheSize) {
-    const cache = newCache<number>({ resetSize: refField.cacheSize })
-    getRefIdFn = makeCachedInsertOrReference(cache)
-  } else {
-    getRefIdFn = insertOrReference
-  }
-  return {
-    field,
-    idField,
-    getRefIdFn,
-  }
-}
-
 function makeInsertRowFnWithRefFields(
+  db: DB,
   schema: {
     refFields: Array<string | RefFieldSchema>
     cacheFields?: string[]
     idFieldSuffix?: string
+    cacheSize?: number
   },
-  db: DB,
+  options: MakeInsertRowFnOptions,
 ): InsertRowFn {
   const idFieldSuffix = schema.idFieldSuffix || '_id'
-  const refFields: RefField[] = schema.refFields.map(ref => {
-    let field: string
-    if (typeof ref === 'string') { createRefTableIfNotExist(field, db) }
-    const select = db.prepare(
-      `select id from "${field}" where "${field}" = ? limit 1`,
-    )
-    const insert = db.prepare(`insert into "${field}" ("${field}") values (?)`)
-    return {
-      field,
-      idField: field + idFieldSuffix,
-      getId: fieldData => insertOrReference(fieldData, select, insert),
-    }
-  })
+  const cacheSchema: CacheSchema = {
+    cacheFields: schema.cacheFields || [],
+    cacheSize: schema.cacheSize,
+    idFieldSuffix,
+  }
+  const refFields: RefField[] = schema.refFields
+    .map(refField => toRefSchema(refField, cacheSchema))
+    .map(refSchema => makeRefField(refSchema, idFieldSuffix, db))
+  const inplaceInsertRowFnWithRefFields = makeInplaceInsertRowFnWithRefFields(
+    refFields,
+  )
+  if (options.inplaceUpdateRefField) {
+    return inplaceInsertRowFnWithRefFields
+  }
   return row => {
-    const res: any = { ...row }
-    refFields.forEach(ref => {
-      const field = ref.field
-      if (!(field in res)) {
+    row = { ...row }
+    return inplaceInsertRowFnWithRefFields(row)
+  }
+}
+
+function makeInplaceInsertRowFnWithRefFields(
+  refFields: RefField[],
+): InsertRowFn {
+  return row => {
+    refFields.forEach(refField => {
+      const field = refField.field
+      if (!(field in row)) {
         return
       }
-      const id = insertOrReference(field, ref)
-      delete res[field]
-      res[ref.idField] = id
+      const fieldData = row[field]
+      const id = refField.getRefIdFn(fieldData, refField.select, refField.insert)
+      delete row[field]
+      row[refField.idField] = id
     })
   }
 }
 
-function insertOrReference(
-  fieldData: string,
-  select: Statement,
-  insert: Statement,
-): number {
-  const res = select.get(fieldData)
-  if (res.length > 0) {
-    return res[0].id
-  }
-  return +insert.run(fieldData).lastInsertRowid
+type CacheSchema = {
+  cacheFields: string[]
+  cacheSize?: number
+  idFieldSuffix: string
 }
 
-function makeCachedInsertOrReference(cache: Cache<number>): GetRefIdFn {
-  return (fieldData, select, insert) =>
-    cache.get(fieldData, () => insertOrReference(fieldData, select, insert))
+function toRefSchema(
+  refField: string | RefFieldSchema,
+  schema: CacheSchema,
+): RefFieldSchema {
+  if (typeof refField === 'string') {
+    const field = refField
+    if (schema.cacheFields.includes(field)) {
+      return { field, cacheSize: schema.cacheSize }
+    }
+    return {
+      field,
+    }
+  }
+  return refField
+}
+
+function makeRefField(
+  schema: RefFieldSchema,
+  idFieldSuffix: string,
+  db: DB,
+): RefField {
+  const field = schema.field
+  const sqls = makeRefSqls(field, db)
+  return {
+    field,
+    idField: schema.idField || field + idFieldSuffix,
+    select: sqls.select,
+    insert: sqls.insert,
+    getRefIdFn: makeGetRefIdFn(schema),
+  }
+}
+
+function makeGetRefIdFn(refField: RefFieldSchema): GetRefIdFn {
+  if (refField.cache) {
+    return makeCachedGetRefIdWithCache(refField.cache)
+  }
+  if (refField.cacheSize) {
+    const cache = newCache<number>({ resetSize: refField.cacheSize })
+    return makeCachedGetRefIdWithCache(cache)
+  }
+  return getRefId
 }
 
 function createRefTableIfNotExist(field: string, db: DB) {
@@ -162,9 +188,27 @@ function createRefTableIfNotExist(field: string, db: DB) {
 }
 
 function makeRefSqls(field: string, db: DB) {
+  createRefTableIfNotExist(field, db)
   const select = db.prepare(
     `select id from "${field}" where "${field}" = ? limit 1`,
   )
   const insert = db.prepare(`insert into "${field}" ("${field}") values (?)`)
   return { select, insert }
+}
+
+function getRefId(
+  fieldData: any,
+  select: Statement,
+  insert: Statement,
+): number {
+  const rows = select.get(fieldData)
+  if (rows.length > 0) {
+    return rows[0].id
+  }
+  return +insert.run(fieldData).lastInsertRowid
+}
+
+function makeCachedGetRefIdWithCache(cache: Cache<number>): GetRefIdFn {
+  return (fieldData, select, insert) =>
+    cache.get(fieldData, () => getRefId(fieldData, select, insert))
 }

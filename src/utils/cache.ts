@@ -4,7 +4,7 @@ export interface Cache<T> {
   clear(): void
 }
 
-export function newCache<T>(options?: { resetSize?: false | number }) {
+export function newCache<T = any>(options?: { resetSize?: false | number }) {
   let cache: any = {}
   let size = 0
   const resetSize = options?.resetSize
