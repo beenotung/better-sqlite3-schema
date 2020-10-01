@@ -1,18 +1,33 @@
 import { Statement } from 'better-sqlite3'
 import { BetterSqlite3Helper } from 'better-sqlite3-helper'
 import { Cache, newCache } from '../utils/cache'
-import { identical } from '../utils/function'
+import { chain } from '../utils/function'
 
 export type DB = BetterSqlite3Helper.DBInstance
 
+export function delDBFile(file: string) {
+  const fs = require('fs')
+  const files = [file, file + '-shm', file + '-wal']
+  files.forEach(file => {
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file)
+    }
+  })
+}
+
 export type TableSchema = {
   table: string
+  fields?: TableFields
+  createTableSql?: string
+  autoCreateTable?: boolean
+  autoAddField?: boolean
   skipFields?: string[]
   refFields?: Array<string | RefFieldSchema>
   cacheFields?: string[]
   cacheSize?: number
   whitelistFields?: string[]
   idFieldSuffix?: string
+  inplaceUpdate?: boolean
 }
 export type RefFieldSchema = {
   field: string
@@ -33,102 +48,146 @@ type GetRefIdFn = (
   insert: Statement,
 ) => number
 
-export type InsertRowFn = (row: any) => any
+export type InsertRowFn = (row: any) => number
 
-export type MakeInsertRowFnOptions = {
-  inplaceUpdateRefField?: boolean
-}
-
-export function makeInsertRowFn(
+export function makeInsertRowFnFromSchema(
   db: DB,
   schema: TableSchema,
-  options?: MakeInsertRowFnOptions,
 ): InsertRowFn {
-  if (schema.whitelistFields) {
-    return makeInsertRowFnWithWhitelistFields(schema.whitelistFields)
+  autoCreateTable(db, schema)
+  let insertRowFn = makeInsertRowFn(db, schema.table)
+  if (schema.autoAddField) {
+    const table = makeTableInfo(db, schema.table)
+    insertRowFn = chain(makeAutoAddFieldMapRowFn(db, table), insertRowFn)
   }
-  let skipFieldsFn: InsertRowFn | undefined
-  if (schema.skipFields) {
-    skipFieldsFn = makeInsertRowFnWithSkipFields(schema.skipFields)
-  }
-  let refFieldsFn: InsertRowFn | undefined
   if (schema.refFields) {
-    refFieldsFn = makeInsertRowFnWithRefFields(
-      db,
-      { ...schema, refFields: schema.refFields },
-      options || {},
+    insertRowFn = chain(
+      makeRefFieldsMapRowFnFromSchema(db, schema),
+      insertRowFn,
     )
   }
-  if (skipFieldsFn && refFieldsFn) {
-    return row => refFieldsFn!(skipFieldsFn!(row))
+  if (schema.skipFields) {
+    insertRowFn = chain(makeSkipFieldsMapRowFn(schema.skipFields), insertRowFn)
   }
-  return skipFieldsFn ?? refFieldsFn ?? identical
+  if (schema.whitelistFields) {
+    insertRowFn = chain(
+      makeWhitelistFieldsMapRowFn(schema.whitelistFields),
+      insertRowFn,
+    )
+  }
+  if (!schema?.inplaceUpdate) {
+    insertRowFn = chain(cloneRowFn, insertRowFn)
+  }
+  return insertRowFn
 }
 
-function makeInsertRowFnWithWhitelistFields(
-  whitelistFields: string[],
-): InsertRowFn {
+const defaultTableFields = {
+  id: `integer primary key`,
+}
+
+function autoCreateTable(
+  db: DB,
+  options: {
+    table: string
+    fields?: TableFields
+    createTableSql?: string
+    autoCreateTable?: boolean
+  },
+) {
+  if (options.createTableSql) {
+    db.exec(options.createTableSql)
+    return
+  }
+  if (!options.autoCreateTable) {
+    return
+  }
+  const fields = options.fields || defaultTableFields
+  const fieldsSql = Object.entries(fields)
+    .map(entry => entry.join(' '))
+    .join(',')
+  const sql = `create table if not exists "${options.table}" (${fieldsSql})`
+  db.exec(sql)
+}
+
+function makeInsertRowFn(db: DB, table: string): InsertRowFn {
   return row => {
+    return db.insert(table, row)
+  }
+}
+
+type MapRowFn = <T>(row: T) => T
+
+function cloneRowFn(row: any) {
+  return { ...row }
+}
+
+function makeWhitelistFieldsMapRowFn(whitelistFields: string[]): MapRowFn {
+  return (row: any) => {
     const res: any = {}
     whitelistFields.forEach(field => (res[field] = row[field]))
     return res
   }
 }
 
-function makeInsertRowFnWithSkipFields(skipFields: string[]): InsertRowFn {
-  return row => {
-    const res = { ...row }
-    skipFields.forEach(field => delete res[field])
-    return res
+function makeSkipFieldsMapRowFn(skipFields: string[]): MapRowFn {
+  return (row: any) => {
+    skipFields.forEach(field => delete row[field])
+    return row
   }
 }
 
-function makeInsertRowFnWithRefFields(
+function makeRefFieldsMapRowFnFromSchema(
+  db: DB,
+  schema: {
+    refFields?: Array<string | RefFieldSchema>
+    idFieldSuffix?: string
+    cacheFields?: string[]
+    cacheSize?: number
+  },
+): MapRowFn {
+  const refFields = makeRefFields(db, {
+    refFields: schema.refFields || [],
+    idFieldSuffix: schema.idFieldSuffix || '_id',
+    cacheFields: schema.cacheFields,
+    cacheSize: schema.cacheSize,
+  })
+  return makeRefFieldsMapRowFn(refFields)
+}
+
+function makeRefFieldsMapRowFn(refFields: RefField[]): MapRowFn {
+  return (row: any) => {
+    refFields.forEach(refField => {
+      const field = refField.field
+      if (!(field in row)) {
+        return
+      }
+      const data = row[field]
+      const id = refField.getRefIdFn(data, refField.select, refField.insert)
+      delete row[field]
+      row[refField.idField] = id
+    })
+    return row
+  }
+}
+
+function makeRefFields(
   db: DB,
   schema: {
     refFields: Array<string | RefFieldSchema>
-    cacheFields?: string[]
     idFieldSuffix?: string
+    cacheFields?: string[]
     cacheSize?: number
   },
-  options: MakeInsertRowFnOptions,
-): InsertRowFn {
+): RefField[] {
   const idFieldSuffix = schema.idFieldSuffix || '_id'
   const cacheSchema: CacheSchema = {
     cacheFields: schema.cacheFields || [],
     cacheSize: schema.cacheSize,
     idFieldSuffix,
   }
-  const refFields: RefField[] = schema.refFields
+  return schema.refFields
     .map(refField => toRefSchema(refField, cacheSchema))
     .map(refSchema => makeRefField(refSchema, idFieldSuffix, db))
-  const inplaceInsertRowFnWithRefFields = makeInplaceInsertRowFnWithRefFields(
-    refFields,
-  )
-  if (options.inplaceUpdateRefField) {
-    return inplaceInsertRowFnWithRefFields
-  }
-  return row => {
-    row = { ...row }
-    return inplaceInsertRowFnWithRefFields(row)
-  }
-}
-
-function makeInplaceInsertRowFnWithRefFields(
-  refFields: RefField[],
-): InsertRowFn {
-  return row => {
-    refFields.forEach(refField => {
-      const field = refField.field
-      if (!(field in row)) {
-        return
-      }
-      const fieldData = row[field]
-      const id = refField.getRefIdFn(fieldData, refField.select, refField.insert)
-      delete row[field]
-      row[refField.idField] = id
-    })
-  }
 }
 
 type CacheSchema = {
@@ -211,4 +270,77 @@ function getRefId(
 function makeCachedGetRefIdWithCache(cache: Cache<number>): GetRefIdFn {
   return (fieldData, select, insert) =>
     cache.get(fieldData, () => getRefId(fieldData, select, insert))
+}
+
+export type Bool = 0 | 1
+export type TableColumn = {
+  cid: number
+  name: string
+  type: string
+  notnull: Bool
+  pk: Bool
+}
+
+export function getTableFields(db: DB, table: string): TableColumn[] {
+  return db.prepare(`PRAGMA table_info("${table}")`).all()
+}
+
+export type TableInfo = {
+  table: string
+  fields: TableFields
+}
+export type TableFields = Record<string, string>
+
+export function makeTableInfo(db: DB, table: string): TableInfo {
+  const fields: TableFields = {}
+  getTableFields(db, table).forEach(
+    column => (fields[column.name] = column.type),
+  )
+  return {
+    table,
+    fields,
+  }
+}
+
+export function addField(
+  db: DB,
+  table: TableInfo,
+  field: string,
+  type: string,
+) {
+  const sql = `alter table "${table.table}" add ${field} ${type};`
+  db.exec(sql)
+  table.fields[field] = type
+}
+
+function makeAutoAddFieldMapRowFn(db: DB, table: TableInfo): MapRowFn {
+  return (row: any) => {
+    Object.keys(row).forEach(field => {
+      if (field in table.fields) {
+        return
+      }
+      const type = toSqliteDataType(row[field])
+      addField(db, table, field, type)
+    })
+    return row
+  }
+}
+
+function toSqliteDataType(fieldData: any): string {
+  switch (typeof fieldData) {
+    case 'string':
+      return 'text'
+    case 'boolean':
+      return 'boolean'
+    case 'object':
+      return 'jsonp'
+    case 'number': {
+      const str = fieldData.toString()
+      if (str === parseInt(str).toString()) {
+        return 'integer'
+      }
+      return 'real'
+    }
+  }
+  return 'blob'
 }
