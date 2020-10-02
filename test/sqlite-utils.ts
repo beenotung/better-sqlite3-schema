@@ -20,21 +20,30 @@ export function exportToSqlite() {
   }
   const addThread = makeInsertRowFnFromSchema(db, {
     table: 'thread',
+    refFields: ['author', 'reason', 'type'],
     ...options,
   })
   const addPost = makeInsertRowFnFromSchema(db, {
     table: 'post',
+    refFields: ['author'],
     ...options,
   })
-  const addImg = makeInsertRowFnFromSchema(db, {
-    table: 'img',
+  const addThreadImg = makeInsertRowFnFromSchema(db, {
+    table: 'thread_img',
+    refFields: ['img'],
     ...options,
   })
-  const addTag = makeInsertRowFnFromSchema(db, {
-    table: 'tag',
+  const addPostImg = makeInsertRowFnFromSchema(db, {
+    table: 'post_img',
+    refFields: ['img'],
     ...options,
   })
-  const n = sampleCount / 10
+  const addThreadTag = makeInsertRowFnFromSchema(db, {
+    table: 'thread_tag',
+    refFields: ['tag'],
+    ...options,
+  })
+  const n = sampleCount
   let i = 0
   timer.next('import data')
   timer.setProgress({ totalTick: n, estimateTime: true })
@@ -50,24 +59,18 @@ export function exportToSqlite() {
     if (key.startsWith('thread-')) {
       const { posts, imgs, tags, ...thread } = value
       const thread_id = addThread(thread)
-      addRows(
-        addTag,
-        { thread_id },
-        tags?.map((tag: string) => ({ tag })),
-      )
-      addRows(
-        addImg,
-        { thread_id },
-        imgs?.map((img: string) => ({ img })),
-      )
+      ; (tags as string[])?.forEach(tag => {
+        addThreadTag({ thread_id, tag })
+      })
+      ; (imgs as string[])?.forEach(img => {
+        addThreadImg({ thread_id, img })
+      })
       forEachRow(posts, { thread_id }, (data: any) => {
         const { imgs, ...post } = data
         const post_id = addPost(post)
-        addRows(
-          addImg,
-          { post_id },
-          imgs?.map((img: string) => ({ img })),
-        )
+        ; (imgs as string[])?.forEach(img => {
+          addPostImg({ post_id, img })
+        })
       })
       continue
     }
@@ -84,28 +87,14 @@ export function test() {
 
 test()
 
-function addRows<T>(
-  addRowFn: (row: T) => number,
-  refFields: Record<string, number>,
-  rows: T[] | undefined,
-  eachFn?: (row: T) => T,
-) {
-  if (!rows) {
-    return
-  }
-  if (eachFn) { rows = rows.map(eachFn) }
-  rows.forEach(row => {
-    Object.assign(row, refFields)
-    addRowFn(row)
-  })
-}
-
 function forEachRow<T>(
   rows: any[] | undefined,
   refFields: Record<string, number>,
   eachFn: (row: T) => void,
 ) {
-  if (!rows) { return }
+  if (!rows) {
+    return
+  }
   rows.forEach(row => {
     Object.assign(row, refFields)
     eachFn(row)

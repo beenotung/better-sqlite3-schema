@@ -260,9 +260,9 @@ function getRefId(
   select: Statement,
   insert: Statement,
 ): number {
-  const rows = select.get(fieldData)
-  if (rows.length > 0) {
-    return rows[0].id
+  const row = select.get(fieldData)
+  if (row) {
+    return row.id
   }
   return +insert.run(fieldData).lastInsertRowid
 }
