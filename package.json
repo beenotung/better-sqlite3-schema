@@ -1,0 +1,55 @@
+{
+  "name": "better-sqlite3-schema",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [],
+  "author": {
+    "name": "Beeno Tung",
+    "email": "aabbcc1241@yahoo.com.hk",
+    "url": "https://beeno-tung.surge.sh"
+  },
+  "license": "BSD-2-Clause",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "npm run rawtest",
+    "clean": "rimraf dist",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "postformat": "tslint -p . --fix",
+    "prebuild": "npm run clean",
+    "build": "tsc -p tsconfig.build.json",
+    "pretest": "npm run format && npm run build",
+    "rawtest": "ts-node test/index.ts && jest",
+    "prepublishOnly": "npm run rawtest && npm run build"
+  },
+  "husky": {
+    "hook": {
+      "pre-commit": "npm run format"
+    }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@beenotung/tslib": "^16.35.0",
+    "tslib": "^2.0.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^26.0.14",
+    "@types/node": "*",
+    "husky": "^4.3.0",
+    "jest": "^26.4.2",
+    "prettier": "^2.1.2",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^26.4.1",
+    "ts-node": "^9.0.0",
+    "tslint": "^6.1.3",
+    "tslint-config-prettier": "^1.18.0",
+    "tslint-eslint-rules": "^5.4.0",
+    "tslint-etc": "^1.13.7",
+    "typescript": "^4.0.3"
+  }
+}
