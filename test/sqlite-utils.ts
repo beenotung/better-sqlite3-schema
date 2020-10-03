@@ -17,8 +17,7 @@ import {
   makeSelectRowFnFromSchema,
   SelectRowFn,
   TableSchema,
-} from '../src/sqlite/helpers'
-import { SqliteObjectSource } from '../src/sqlite/sqlite'
+} from '../src/helpers'
 import { iterateSamples, sampleCount } from './sample'
 
 export let dbfile = 'db.sqlite3'
@@ -246,7 +245,7 @@ export function exportToSqlite() {
   const db = createDB({ file: dbfile, mode: 'overwrite' })
   // const insertRowFn = makeGeneralInsertRowFn(db)
   const insertRowFn = makePredefinedInsertRowFn(db)
-  const n = sampleCount / 50
+  const n = sampleCount
   let i = 0
   timer.next('import data')
   timer.setProgress({ totalTick: n, estimateTime: true, sampleOver: n / 100 })
@@ -314,11 +313,7 @@ export function loadFromSqlite() {
   const timer = startTimer('init')
   const db = createDB({ file: dbfile })
   const countRowsFn = () => countRows(db, 'thread')
-  const source = new SqliteObjectSource<any>({
-    selectRowFn: makePredefinedSelectRowFn(db),
-    countRowsFn,
-    close: () => db.close(),
-  })
+  const selectRowFn = makePredefinedSelectRowFn(db)
   timer.next('load data')
   const n = countRowsFn()
   timer.setProgress({
@@ -326,22 +321,27 @@ export function loadFromSqlite() {
     estimateTime: true,
     sampleOver: n / 100,
   })
-  for (const thread of source.iterator({ autoClose: true })) {
+  for (let i = 0; i < n; i++) {
+    const thread = selectRowFn(i)
+    if (!thread) {
+      throw new Error('failed to load thread')
+    }
     timer.tick()
   }
   timer.end()
+  db.close()
 }
 
 export function getFields() {
   const db = DB({ path: dbfile, migrate: false })
-  const fields = getTableFields(db, 'threads')
+  const fields = getTableFields(db, 'thread')
   console.log(fields)
 }
 
 export function test() {
-  // scanSchema()
-  // getFields()
-  // exportToSqlite()
+  scanSchema()
+  exportToSqlite()
+  getFields()
   loadFromSqlite()
 }
 

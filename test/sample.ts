@@ -1,5 +1,4 @@
-import fs from 'fs'
-import { iterateFdByLine } from '../src/utils/fs'
+import { iterateFileByLine } from '@beenotung/tslib/fs'
 
 const file = 'res/sample.txt'
 
@@ -12,8 +11,11 @@ export function* iterateSamples() {
   let mode = Type.Key
   let key: string = ''
   let value: any
-  const fd = fs.openSync(file, 'r')
-  for (const line of iterateFdByLine(fd)) {
+  let i = 0
+  for (const line of iterateFileByLine(file)) {
+    if (i >= sampleCount) {
+      break
+    }
     switch (mode) {
       case Type.Key:
         key = JSON.parse(line)
@@ -22,23 +24,25 @@ export function* iterateSamples() {
       case Type.Value:
         value = JSON.parse(line)
         yield { key, value }
+        i++
         mode = Type.Key
         continue
     }
   }
-  fs.closeSync(fd)
 }
 
 export function countSamples() {
   let lines = 0
-  const fd = fs.openSync(file, 'r')
-  for (const _ of iterateFdByLine(fd)) {
+  for (const _ of iterateFileByLine(file)) {
     lines++
   }
-  fs.closeSync(fd)
   return lines / 2
 }
 
 // for file size of 843M
 export let sampleCount = 266430 // on desktop
 sampleCount = 291119 // on laptop
+
+if ('quick') {
+  sampleCount /= 100
+}

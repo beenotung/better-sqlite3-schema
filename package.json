@@ -1,6 +1,6 @@
 {
   "name": "better-sqlite3-schema",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "",
   "keywords": [],
   "author": {
@@ -19,7 +19,7 @@
     "prebuild": "npm run clean",
     "build": "tsc -p tsconfig.build.json",
     "pretest": "npm run format && npm run build",
-    "rawtest": "ts-node test/index.ts && jest -i ./test/.*.test.ts",
+    "rawtest": "ts-node test/index.ts && jest",
     "prepublishOnly": "npm run rawtest && npm run build"
   },
   "husky": {
@@ -30,14 +30,6 @@
   "directories": {
     "test": "test"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/beenotung/binary-object.git"
-  },
-  "bugs": {
-    "url": "https://github.com/beenotung/binary-object/issues"
-  },
-  "homepage": "https://github.com/beenotung/binary-object#readme",
   "files": [
     "dist"
   ],
