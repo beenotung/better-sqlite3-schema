@@ -1,4 +1,4 @@
-
+# nodejs
 node_modules/
 package-lock.json
 pnpm-lock.yaml
@@ -7,3 +7,9 @@ dist/
 .cache/
 *.tgz
 .env
+
+# test data
+res/
+log
+db.log
+db.sqlite3*
