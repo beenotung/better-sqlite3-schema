@@ -1,10 +1,8 @@
 type Key = string
 
 export interface Cache<T> {
-
   wrapFn: (fn: (key: Key) => T) => (key: Key) => T
   get(key: Key, genFn: (key: Key) => T): T
-
   clear(): void
 }
 

@@ -1,7 +1,7 @@
 import { Statement } from 'better-sqlite3'
 import DB, { BetterSqlite3Helper } from 'better-sqlite3-helper'
-import { Cache, newCache } from '../utils/cache'
-import { chain } from '../utils/function'
+import { Cache, newCache } from './utils/cache'
+import { chain } from './utils/function'
 
 export type DB = BetterSqlite3Helper.DBInstance
 export type DBInstance = DB
