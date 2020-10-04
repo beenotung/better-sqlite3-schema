@@ -253,11 +253,11 @@ function makeInsertRefFieldsMapRowFn(refFields: InsertRefField[]): MapRowFn {
   }
 }
 
-function toRefSchemas(schema: TableSchema): RefFieldSchema[] {
+export function toRefSchemas(schema: TableSchema): RefFieldSchema[] {
   return (schema.refFields || []).map(refField => toRefSchema(refField, schema))
 }
 
-function toRefSchema(
+export function toRefSchema(
   refField: string | RefFieldSchema,
   schema: TableSchema,
 ): RefFieldSchema {
