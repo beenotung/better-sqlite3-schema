@@ -115,21 +115,25 @@ function getWhitelistFields(schema: TableSchema): string[] | undefined {
   return [...Object.keys(schema.fields), ...toRefIdFieldNames(schema)]
 }
 
-const defaultIdFieldSuffix = '_id'
+export const defaultIdFieldSuffix = '_id'
 
-function toRefIdFieldNames(
+export function toRefIdFieldNames(
   schema: Pick<TableSchema, 'refFields' | 'idFieldSuffix'>,
 ): string[] {
-  return (
-    schema.refFields?.map(field =>
-      typeof field === 'string'
-        ? field + (schema.idFieldSuffix || defaultIdFieldSuffix)
-        : field.idField,
-    ) || []
+  return (schema.refFields || []).map(refField =>
+    typeof refField === 'string'
+      ? refField + (schema.idFieldSuffix || defaultIdFieldSuffix)
+      : refField.idField,
   )
 }
 
-const defaultTableFields = {
+export function toRefFieldNames(schema: TableSchema): string[] {
+  return (schema.refFields || []).map(refField =>
+    typeof refField === 'string' ? refField : refField.field,
+  )
+}
+
+export const defaultTableFields = {
   id: `integer primary key`,
 }
 
