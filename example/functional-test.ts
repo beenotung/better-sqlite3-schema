@@ -1,143 +1,34 @@
 import { startTimer } from '@beenotung/tslib/node'
-import DB from 'better-sqlite3-helper'
 import {
   CacheOptions,
   countRows,
   createDB,
   DBInstance,
-  DeduplicatedTableSchema,
   forEach,
-  getTableFields,
   InsertRowFn,
   makeDeduplicatedInsertRowFnFromSchema,
   makeGetRefValueFnFromSchema,
   makeInsertRowFnFromSchema,
-  makeSchemaScanner,
   makeSelectRefFieldArray,
   makeSelectRowFnFromSchema,
   SelectRowFn,
   TableSchema,
-} from '../src/helpers'
+} from '../src'
 import { iterateSamples, sampleCount } from './sample'
-
-export let dbfile = 'db.sqlite3'
-
-export namespace JsonData {
-  export const threadFields = {
-    type: 'text', // refField
-    tid: 'integer',
-    fid: 'integer',
-    create_at: 'text',
-    last_cm: 'text',
-    subject: 'text',
-    page: 'integer',
-    pages: 'integer',
-    reason: 'text', // refField
-    content: 'text',
-    tags: 'json', // extracted
-    imgs: 'json', // extracted
-    posts: 'json', // extracted
-    author: 'text', // extracted
-    uid: 'integer',
-  }
-  export const postFields = {
-    pid: 'integer',
-    create_at: 'text',
-    content: 'text',
-    imgs: 'json', // extracted
-    author: 'text', // extracted
-    uid: 'integer',
-  }
-  // used in thread
-  export let tagFields: {
-    tag: string
-  }
-  // used in thread and post
-  export let imgFields: {
-    img: string
-  }
-  // used in thread and post
-  export let authorFields: {
-    author: 'text'
-    uid: 'integer'
-  }
-}
-
-const skippedThreadSchema: TableSchema = {
-  table: 'skipped_thread',
-  fields: {
-    tid: 'integer',
-  },
-  skipFields: ['type'],
-  refFields: ['reason'],
-}
-const threadSchema: TableSchema = {
-  table: 'thread',
-  fields: {
-    tid: 'integer',
-    fid: 'integer',
-    uid: 'integer',
-    create_at: 'text',
-    last_cm: 'text',
-    subject: 'text',
-    page: 'integer',
-    pages: 'integer',
-    content: 'text',
-  },
-  refFields: ['type'],
-}
-const threadTagSchema: TableSchema = {
-  table: 'thread_tag',
-  fields: {
-    tid: 'integer',
-  },
-  refFields: ['tag'],
-}
-const threadImgSchema: TableSchema = {
-  table: 'thread_img',
-  fields: {
-    tid: 'integer',
-  },
-  refFields: ['img'],
-}
-const authorSchema: TableSchema & DeduplicatedTableSchema = {
-  table: 'author',
-  fields: {
-    uid: 'integer',
-    author: 'text',
-  },
-  deduplicateField: 'author',
-  idField: 'uid',
-}
-const postSchema: TableSchema = {
-  table: 'post',
-  fields: {
-    pid: 'integer',
-    tid: 'integer',
-    uid: 'integer',
-    create_at: 'text',
-    content: 'text',
-  },
-}
-const postImgSchema: TableSchema = {
-  table: 'post_img',
-  fields: {
-    pid: 'integer',
-  },
-  refFields: ['img'],
-}
+import {
+  authorSchema,
+  dbfile,
+  postImgSchema,
+  postSchema,
+  skippedThreadSchema,
+  threadImgSchema,
+  threadSchema,
+  threadTagSchema,
+} from './schema'
 
 export function makePredefinedInsertRowFn(db: DBInstance): InsertRowFn {
-  const tableOptions: Partial<TableSchema> = {
-    inplaceUpdate: true,
-    autoCreateTable: true,
-    // whitelistFields: true,
-    autoCreateIndex: true,
-    cacheSize: 20 * 1024 ** 2,
-  }
-
   function makeAddRow(schema: TableSchema) {
-    return makeInsertRowFnFromSchema(db, { ...schema, ...tableOptions })
+    return makeInsertRowFnFromSchema(db, schema)
   }
 
   const addSkippedThread = makeAddRow(skippedThreadSchema)
@@ -146,7 +37,7 @@ export function makePredefinedInsertRowFn(db: DBInstance): InsertRowFn {
   const addThreadImg = makeAddRow(threadImgSchema)
   const addAuthor = makeDeduplicatedInsertRowFnFromSchema(
     db,
-    { ...authorSchema, ...tableOptions },
+    authorSchema,
     makeAddRow(authorSchema),
   )
   const addPost = makeAddRow(postSchema)
@@ -219,25 +110,6 @@ export function makeGeneralInsertRowFn(db: DBInstance): InsertRowFn {
     })
     return thread_id
   }
-}
-
-export function scanSchema() {
-  const { fields: threadFields, addRowFn: addThread } = makeSchemaScanner()
-  const { fields: postFields, addRowFn: addPost } = makeSchemaScanner()
-  const timer = startTimer('scan schema')
-  const n = sampleCount
-  timer.setProgress({ totalTick: n, estimateTime: true, sampleOver: n / 100 })
-  for (const data of iterateSamples()) {
-    const { posts, ...thread } = data.value
-    addThread(thread)
-    ; (posts as any[])?.forEach(addPost)
-    timer.tick()
-  }
-  timer.end()
-  console.log({
-    threadFields,
-    postFields,
-  })
 }
 
 export function exportToSqlite() {
@@ -332,16 +204,8 @@ export function loadFromSqlite() {
   db.close()
 }
 
-export function getFields() {
-  const db = DB({ path: dbfile, migrate: false })
-  const fields = getTableFields(db, 'thread')
-  console.log(fields)
-}
-
 export function test() {
-  scanSchema()
   exportToSqlite()
-  getFields()
   loadFromSqlite()
 }
 

@@ -67,4 +67,24 @@ const postImgSchema: TableSchema = {
 }
 ```
 
-Detail example see `makePredefinedInsertRowFn()` and `makeGeneralInsertRowFn()` in [sample-test.ts](./test/sample-test.ts)
+### Functional Approach (compose at runtime)
+
+The functional approach allows one to compose customizable helper functions at runtime.
+
+Explore the dataset and auto built schema with
+- `makeSchemaScanner()`
+
+Compose insert functions with
+- `makeInsertRowFnFromSchema()`
+- `makeDeduplicatedInsertRowFnFromSchema()`
+
+Compose select functions with
+- `makeSelectRowFnFromSchema()`
+- `makeSelectRefFieldArray()`
+- `makeGetRefValueFnFromSchema()`
+
+Detail example see `makePredefinedInsertRowFn()` and `makeGeneralInsertRowFn()` in [functional-test.ts](./example/functional-test.ts)
+
+### Code Generation Approach (compose at build-time)
+
+The code generation approach allows one to compose customizable helper functions at build-time. Which can archive ~50% speed up compared to the runtime composing.

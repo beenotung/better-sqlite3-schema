@@ -1,3 +1,6 @@
+export * from './types'
 export * from './helpers'
 export { chain } from './utils/function'
 export { newCache, Cache } from './utils/cache'
+export { toCamelCase } from './utils/string'
+export { mapObject } from './utils/object'

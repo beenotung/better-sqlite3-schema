@@ -37,8 +37,6 @@ export function createDB(options: CreateDBOptions) {
 export type TableSchema = {
   table: string
   fields?: TableFields
-  createTableSql?: string
-  createIndexSql?: string
   autoAddField?: boolean
   skipFields?: string[]
   refFields?: Array<string | RefFieldSchema>
@@ -48,14 +46,20 @@ export type TableSchema = {
   inplaceUpdate?: boolean
   deduplicateField?: string
 } & CacheOptions &
-  AutoCreateOptions
+  AutoCreateOptions &
+  CreateOptions
 export type AutoCreateOptions = {
   autoCreateTable?: boolean
   autoCreateIndex?: boolean
 }
+export type CreateOptions = {
+  createTableSql?: string
+  createIndexSql?: string
+}
 export type RefFieldSchema = {
   field: string
   idField: string
+  type?: string
 } & CacheOptions &
   AutoCreateOptions
 type InsertRefField = {
@@ -74,7 +78,7 @@ export function makeInsertRowFnFromSchema(
   schema: TableSchema,
 ): InsertRowFn {
   autoCreateTable(db, schema)
-  autoCreateIndex(db, schema)
+  autoCreateIndexFromSchema(db, schema)
   let insertRowFn = makeInsertRowFn(db, schema.table)
   if (schema.autoAddField) {
     const table = makeTableInfo(db, schema.table)
@@ -153,7 +157,7 @@ function autoCreateTable(db: DB, schema: TableSchema) {
   db.exec(sql)
 }
 
-function autoCreateIndex(db: DB, schema: TableSchema) {
+function autoCreateIndexFromSchema(db: DB, schema: TableSchema) {
   if (schema.createIndexSql) {
     return db.exec(schema.createIndexSql)
   }
@@ -190,13 +194,16 @@ export type DeduplicatedTableSchema = {
   table: string
   deduplicateField: string
   idField: string
-} & CacheOptions
+} & CacheOptions &
+  AutoCreateOptions &
+  CreateOptions
 
 export function makeDeduplicatedInsertRowFnFromSchema(
   db: DB,
   schema: DeduplicatedTableSchema,
   insertRowFn: InsertRowFn,
 ): InsertRowFn {
+  autoCreateIndexFromDeduplicatedSchema(db, schema)
   const idField = schema.idField
   const deduplicateField = schema.deduplicateField
   const select: Statement = db.prepare(
@@ -218,6 +225,16 @@ export function makeDeduplicatedInsertRowFnFromSchema(
     const fieldData = row[deduplicateField]
     return cache.get(fieldData, () => deduplicatedInsertRowFn(row))
   }
+}
+
+function autoCreateIndexFromDeduplicatedSchema(
+  db: DB,
+  schema: DeduplicatedTableSchema,
+) {
+  if (!schema.autoCreateIndex) {
+    return
+  }
+  createUniqueIndexIfNotExist(db, schema.deduplicateField)
 }
 
 type MapRowFn = <T>(row: T) => T
@@ -310,7 +327,7 @@ function createRefTableIfNotExist(db: DB, field: string, idField: string) {
 );`)
 }
 
-function createRefIndexIfNotExist(db: DB, field: string) {
+function createUniqueIndexIfNotExist(db: DB, field: string) {
   db.exec(
     `create unique index if not exists "${field}_idx" on "${field}" ("${field}")`,
   )
@@ -335,7 +352,7 @@ export function makeInsertRefSqls(
     createRefTableIfNotExist(db, field, idField)
   }
   if (schema.autoCreateIndex) {
-    createRefIndexIfNotExist(db, field)
+    createUniqueIndexIfNotExist(db, field)
   }
   const select = db.prepare(
     `select "${idField}" from "${field}" where "${field}" = ? limit 1`,
@@ -698,4 +715,10 @@ export function* iterateRows<T>(select: (offset: number) => T, count: number) {
   for (let i = 0; i < count; i++) {
     yield select(i)
   }
+}
+
+export function cacheAllRefFields(schema: TableSchema) {
+  const cacheFields = new Set<string>(schema.cacheFields)
+  toRefFieldNames(schema).forEach(field => cacheFields.add(field))
+  schema.cacheFields = Array.from(cacheFields)
 }

@@ -1,6 +1,7 @@
 import { iterateFileByLine } from '@beenotung/tslib/fs'
 
 const file = 'res/sample.txt'
+export let dbfile = 'db.sqlite3'
 
 const Type = {
   Key: 1,
@@ -43,6 +44,6 @@ export function countSamples() {
 export let sampleCount = 266430 // on desktop
 sampleCount = 291119 // on laptop
 
-if ('quick') {
+if (!'quick') {
   sampleCount /= 100
 }

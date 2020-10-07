@@ -1,0 +1,8 @@
+{
+  "name": "better-sqlite3-schema-example",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "better-sqlite3-schema": "file:.."
+  }
+}

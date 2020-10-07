@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/better-sqlite3-schema.iml" filepath="$PROJECT_DIR$/.idea/.idea/better-sqlite3-schema.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/better-sqlite3-schema.iml" filepath="$PROJECT_DIR$/.idea/better-sqlite3-schema.iml" />
     </modules>
   </component>
 </project>
