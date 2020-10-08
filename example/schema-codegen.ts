@@ -218,13 +218,13 @@ export function insertAuthor(data: AuthorData): Integer.IntLike {
 }
 
 db.exec(`create unique index if not exists "author_idx" on "author" ("author")`)
-export const count_uid_statement: Statement = db.prepare(`select count(*) from "author" where "uid" = ?`)
+export const count_uid_statement: Statement = db.prepare(`select count(*) count from "author" where "uid" = ?`)
 export const deduplicated_insert_author_statement: Statement = db.prepare(`insert into "author" ("uid","author") values (?,?)`)
 
 export function deduplicatedInsertAuthor(data: AuthorData): Integer.IntLike {
   const id = data["uid"]
   const row = count_uid_statement.get(id)
-  if (!row) {
+  if (!row.count) {
     deduplicated_insert_author_statement.run(id, data["author"])
   }
   return id as any

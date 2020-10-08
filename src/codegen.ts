@@ -226,7 +226,7 @@ export function makeDeduplicatedTable(schema: DeduplicatedTableSchema) {
   const indexSql = makeUniqueIndexSql(field)
 
   const select = makeCountStatementName(idField)
-  const selectSql = `select count(*) from "${table}" where "${idField}" = ?`
+  const selectSql = `select count(*) count from "${table}" where "${idField}" = ?`
 
   const insert = 'deduplicated_' + makeInsertStatementName(table)
   const insertSql = `insert into "${table}" ("${idField}","${field}") values (?,?)`
@@ -241,7 +241,7 @@ export const ${insert}: Statement = db.prepare(\`${insertSql}\`)
 export function ${insertFnName}(data: ${tableName}Data): Integer.IntLike {
   const id = data["${idField}"]
   const row = ${select}.get(id)
-  if (!row) {
+  if (!row.count) {
     ${insert}.run(id, data["${field}"])
   }
   return id as any
