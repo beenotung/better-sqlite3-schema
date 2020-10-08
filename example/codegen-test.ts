@@ -1,42 +1,9 @@
-import { createDB, forEach } from '../src'
-import { dbfile } from './sample'
+import { countRows, createDB, forEach } from '../src'
+import { dbfile, iterateSamples, sampleCount } from './sample'
 const db = createDB({ file: dbfile, mode: 'overwrite' })
 import { startTimer } from '@beenotung/tslib/node'
-import { iterateSamples, sampleCount } from './sample'
-import {
-  insertThread,
-  insertSkippedThread,
-  deduplicatedInsertAuthor,
-  insertThreadTag,
-  insertThreadImg,
-  insertPost, insertPostImg,
-} from './schema-codegen'
-import Integer from 'integer'
-
-export function insertData(data: any): Integer.IntLike {
-  const { tags, imgs, posts, author, ...thread } = data
-  if (thread.type === 'skip') {
-    return insertSkippedThread(data)
-  }
-  if (author) {
-    deduplicatedInsertAuthor({ uid: thread.uid, author })
-  }
-  insertThread(thread)
-  const tid = thread.tid
-  forEach(tags, tag => insertThreadTag({ tid, tag }))
-  forEach(imgs, img => insertThreadImg({ tid, img }))
-  forEach(posts, data => {
-    const { imgs, author, ...post } = data
-    if (author) {
-      deduplicatedInsertAuthor({ uid: post.uid, author })
-    }
-    post.tid = tid
-    insertPost(post)
-    const pid = post.pid
-    forEach(imgs, img => insertPostImg({ pid, img }))
-  })
-  return tid
-}
+import { insertData } from './codegen-helpers'
+import { makePredefinedSelectRowFn } from './functional-helpers'
 
 export function exportToSqlite() {
   const timer = startTimer('init db')
@@ -64,7 +31,26 @@ export function exportToSqlite() {
 }
 
 export function loadFromSqlite() {
-// TODO
+  const timer = startTimer('init')
+  const db = createDB({ file: dbfile })
+  const countRowsFn = () => countRows(db, 'thread')
+  const selectRowFn = makePredefinedSelectRowFn(db)
+  timer.next('load data')
+  const n = countRowsFn()
+  timer.setProgress({
+    totalTick: n,
+    estimateTime: true,
+    sampleOver: n / 100,
+  })
+  for (let i = 0; i < n; i++) {
+    const thread = selectRowFn(i)
+    if (!thread) {
+      throw new Error('failed to load thread')
+    }
+    timer.tick()
+  }
+  timer.end()
+  db.close()
 }
 
 export function test() {
@@ -73,5 +59,6 @@ export function test() {
 }
 
 if (process.argv[1] === __filename) {
+  console.log('test')
   test()
 }
