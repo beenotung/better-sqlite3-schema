@@ -412,12 +412,16 @@ export function removeIndices(db: DB, table: string) {
   })
 }
 
-export function removeAllIndices(db: DB) {
+export function removeAllIndices(db: DB, options?: { skip_vacuum?: boolean }) {
   db.prepare(`select name from sqlite_master where type = 'index'`)
     .all()
     .forEach(row => {
       db.exec(`drop index if exists "${row.name}"`)
     })
+  if (options?.skip_vacuum) {
+    return
+  }
+  db.exec(`VACUUM`)
 }
 
 export type TableInfo = {
