@@ -95,7 +95,7 @@ export const authorSchema: TableSchema & DeduplicatedTableSchema = {
     uid: 'integer',
     author: 'text',
   },
-  deduplicateField: 'author',
+  deduplicateFields: ['author'],
   idField: 'uid',
 }
 export const postSchema: TableSchema = {

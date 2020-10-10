@@ -1,5 +1,8 @@
 import {
   DeduplicatedTableSchema,
+  escapeField,
+  makeCreateRefTableSql,
+  makeUniqueIndexSql,
   RefFieldSchema,
   TableSchema,
   toRefFieldNames,
@@ -9,9 +12,7 @@ import {
 import { compare } from './utils/compare'
 import { toCamelCase } from './utils/string'
 
-export type MaybeDeduplicatedTableSchema =
-  | TableSchema
-  | (TableSchema & DeduplicatedTableSchema)
+export type MaybeDeduplicatedTableSchema = TableSchema | DeduplicatedTableSchema
 
 export function makeInsertSql(table: string, fields: string[]) {
   table = escapeField(table)
@@ -39,10 +40,6 @@ export function toDataFieldNames(schema: TableSchema) {
   return [...Object.keys(schema.fields || {}), ...toRefFieldNames(schema)]
 }
 
-export function escapeField(field: string) {
-  return JSON.stringify(field)
-}
-
 export function makeCreateTableSql(schema: TableSchema) {
   const table = escapeField(schema.table)
   const cols: string[] = []
@@ -52,6 +49,10 @@ export function makeCreateTableSql(schema: TableSchema) {
   toRefIdFieldNames(schema).forEach(field =>
     cols.push(escapeField(field) + ' integer'),
   )
+  if (schema.primaryKeys) {
+    const fields = schema.primaryKeys.map(escapeField).join(', ')
+    cols.push(`primary key(${fields})`)
+  }
   const col = cols.map(col => '  ' + col).join(',\n')
   return `create table if not exists ${table} (
 ${col}
@@ -110,6 +111,7 @@ export type ${tableName}Data = ${dataType}
 export type ${tableName}Row = ${rowType}
 
 db.exec(\`${createTableSql}\`)
+${schema.createIndexSql ? `db.exec(\`${schema.createIndexSql}\`)` : ''}
 const ${insertName} = db.prepare(\`${insertSql}\`)
 
 export function ${insertFnName}(data: ${tableName}Data): Integer.IntLike {
@@ -119,8 +121,8 @@ ${insertRowValues.map(field => '    ' + field).join(',\n')}
   ).lastInsertRowid;
 }
 `
-  if ('deduplicateField' in schema && 'idField' in schema) {
-    code += makeDeduplicatedTable(schema)
+  if (schema.deduplicateFields && schema.idField) {
+    code += makeDeduplicatedTable(Object.assign(schema))
   }
   return code
 }
@@ -173,18 +175,14 @@ export function makeRefTables(schemas: TableSchema[]) {
     .map((refSchema): string => {
       const field = refSchema.field
       const idField = refSchema.idField
-      const type = refSchema.type ? ' ' + refSchema.type : ''
 
-      const createTableSql = `create table if not exists "${field}" (
-  "${idField}" integer primary key,
-  "${field}"${type}
-)`
+      const createTableSql = makeCreateRefTableSql(refSchema)
       if (createdTableSqls.has(createTableSql)) {
         return ''
       }
       createdTableSqls.add(createTableSql)
 
-      const createIndexSql = makeUniqueIndexSql(field)
+      const createIndexSql = makeRefTableIndexSql(field)
 
       const selectId = makeSelectStatementName(idField)
       const selectIdSql = `select "${idField}" from "${field}" where "${field}" = ?`
@@ -212,24 +210,38 @@ export const ${cacheName} = newCache({ resetSize: ${size} })`
     .join('')
 }
 
-function makeUniqueIndexSql(field: string) {
-  return `create unique index if not exists "${field}_idx" on "${field}" ("${field}")`
+export function makeRefTableIndexSql(field: string) {
+  return makeUniqueIndexSql(field, [field])
 }
 
 // TODO make this standalone, without being proxied from makeTable
-export function makeDeduplicatedTable(schema: DeduplicatedTableSchema) {
+function makeDeduplicatedTable(schema: DeduplicatedTableSchema) {
   const table = schema.table
   const tableName = toCamelCase(table)
   const idField = schema.idField
-  const field = schema.deduplicateField
+  const deduplicateFields = schema.deduplicateFields
+  const rowFields = toRowFieldNames(schema)
 
-  const indexSql = makeUniqueIndexSql(field)
+  const indexSql = makeUniqueIndexSql(table, deduplicateFields)
 
   const select = makeCountStatementName(idField)
   const selectSql = `select count(*) count from "${table}" where "${idField}" = ?`
 
   const insert = 'deduplicated_' + makeInsertStatementName(table)
-  const insertSql = `insert into "${table}" ("${idField}","${field}") values (?,?)`
+  const insertSql = makeInsertSql(schema.table, rowFields)
+
+  const fields = toFieldNames(schema)
+  const refIdFields = toRefIdFieldNames(schema)
+  const insertRowValues = [
+    ...fields.map(field => `data[${field}]`),
+    ...refIdFields,
+  ]
+
+  const refSchemas = toRefSchemas(schema)
+  const getRefValues = refSchemas
+    .map(makeInlineGetRefId)
+    .map(line => '  ' + line)
+    .join('')
 
   const insertFnName = 'deduplicatedInsert' + tableName
 
@@ -242,7 +254,10 @@ export function ${insertFnName}(data: ${tableName}Data): Integer.IntLike {
   const id = data["${idField}"]
   const row = ${select}.get(id)
   if (!row.count) {
-    ${insert}.run(id, data["${field}"])
+${getRefValues}
+    ${insert}.run(
+${insertRowValues.map(field => '      ' + field).join(',\n')}
+    )
   }
   return id as any
 }

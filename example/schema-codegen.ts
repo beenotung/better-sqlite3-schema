@@ -12,7 +12,7 @@ db.exec(`create table if not exists "reason" (
   "reason_id" integer primary key,
   "reason"
 )`)
-db.exec(`create unique index if not exists "reason_idx" on "reason" ("reason")`)
+db.exec(`create unique index if not exists "reason_unique_idx" on "reason" ("reason")`)
 export const select_reason_id_statement: Statement = db.prepare(`select "reason_id" from "reason" where "reason" = ?`)
 export const insert_reason_statement: Statement = db.prepare(`insert into "reason" ("reason") values (?)`)
 export const reason_id_cache = newCache({ resetSize: 20971520 })
@@ -21,7 +21,7 @@ db.exec(`create table if not exists "type" (
   "type_id" integer primary key,
   "type"
 )`)
-db.exec(`create unique index if not exists "type_idx" on "type" ("type")`)
+db.exec(`create unique index if not exists "type_unique_idx" on "type" ("type")`)
 export const select_type_id_statement: Statement = db.prepare(`select "type_id" from "type" where "type" = ?`)
 export const insert_type_statement: Statement = db.prepare(`insert into "type" ("type") values (?)`)
 export const type_id_cache = newCache({ resetSize: 20971520 })
@@ -30,7 +30,7 @@ db.exec(`create table if not exists "tag" (
   "tag_id" integer primary key,
   "tag"
 )`)
-db.exec(`create unique index if not exists "tag_idx" on "tag" ("tag")`)
+db.exec(`create unique index if not exists "tag_unique_idx" on "tag" ("tag")`)
 export const select_tag_id_statement: Statement = db.prepare(`select "tag_id" from "tag" where "tag" = ?`)
 export const insert_tag_statement: Statement = db.prepare(`insert into "tag" ("tag") values (?)`)
 export const tag_id_cache = newCache({ resetSize: 20971520 })
@@ -39,7 +39,7 @@ db.exec(`create table if not exists "img" (
   "img_id" integer primary key,
   "img"
 )`)
-db.exec(`create unique index if not exists "img_idx" on "img" ("img")`)
+db.exec(`create unique index if not exists "img_unique_idx" on "img" ("img")`)
 export const select_img_id_statement: Statement = db.prepare(`select "img_id" from "img" where "img" = ?`)
 export const insert_img_statement: Statement = db.prepare(`insert into "img" ("img") values (?)`)
 export const img_id_cache = newCache({ resetSize: 20971520 })
@@ -52,6 +52,7 @@ db.exec(`create table if not exists "skipped_thread" (
   "tid" integer,
   "reason_id" integer
 )`)
+
 const insert_skipped_thread_statement = db.prepare(`insert into "skipped_thread" (
   "tid",
   "reason_id"
@@ -92,6 +93,7 @@ db.exec(`create table if not exists "thread" (
   "content" text,
   "type_id" integer
 )`)
+
 const insert_thread_statement = db.prepare(`insert into "thread" (
   "tid",
   "fid",
@@ -140,6 +142,7 @@ db.exec(`create table if not exists "thread_tag" (
   "tid" integer,
   "tag_id" integer
 )`)
+
 const insert_thread_tag_statement = db.prepare(`insert into "thread_tag" (
   "tid",
   "tag_id"
@@ -172,6 +175,7 @@ db.exec(`create table if not exists "thread_img" (
   "tid" integer,
   "img_id" integer
 )`)
+
 const insert_thread_img_statement = db.prepare(`insert into "thread_img" (
   "tid",
   "img_id"
@@ -204,6 +208,7 @@ db.exec(`create table if not exists "author" (
   "uid" integer,
   "author" text
 )`)
+
 const insert_author_statement = db.prepare(`insert into "author" (
   "uid",
   "author"
@@ -217,15 +222,22 @@ export function insertAuthor(data: AuthorData): Integer.IntLike {
   ).lastInsertRowid;
 }
 
-db.exec(`create unique index if not exists "author_idx" on "author" ("author")`)
+db.exec(`create unique index if not exists "author_unique_idx" on "author" ("author")`)
 export const count_uid_statement: Statement = db.prepare(`select count(*) count from "author" where "uid" = ?`)
-export const deduplicated_insert_author_statement: Statement = db.prepare(`insert into "author" ("uid","author") values (?,?)`)
+export const deduplicated_insert_author_statement: Statement = db.prepare(`insert into "author" (
+  "uid",
+  "author"
+) values (?,?)`)
 
 export function deduplicatedInsertAuthor(data: AuthorData): Integer.IntLike {
   const id = data["uid"]
   const row = count_uid_statement.get(id)
   if (!row.count) {
-    deduplicated_insert_author_statement.run(id, data["author"])
+
+    deduplicated_insert_author_statement.run(
+      data["uid"],
+      data["author"]
+    )
   }
   return id as any
 }
@@ -241,6 +253,7 @@ db.exec(`create table if not exists "post" (
   "create_at" text,
   "content" text
 )`)
+
 const insert_post_statement = db.prepare(`insert into "post" (
   "pid",
   "tid",
@@ -268,6 +281,7 @@ db.exec(`create table if not exists "post_img" (
   "pid" integer,
   "img_id" integer
 )`)
+
 const insert_post_img_statement = db.prepare(`insert into "post_img" (
   "pid",
   "img_id"

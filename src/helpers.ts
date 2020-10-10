@@ -44,7 +44,13 @@ export type TableSchema = {
   whitelistFields?: string[] | boolean
   idFieldSuffix?: string
   inplaceUpdate?: boolean
-  deduplicateField?: string
+
+  // for DeduplicatedTable
+  deduplicateFields?: string[]
+  idField?: string
+
+  // for implicit index
+  primaryKeys?: string[]
 } & CacheOptions &
   AutoCreateOptions &
   CreateOptions
@@ -69,7 +75,7 @@ type InsertRefField = {
   insert: Statement
   getRefIdFn: GetRefIdFn
 }
-type GetRefIdFn = (refSqls: InsertRefSqls, fieldData: any) => number
+type GetRefIdFn = (refSqls: InsertRefSqls, fieldData: any) => number | null
 
 export type InsertRowFn = (row: any) => number
 
@@ -150,10 +156,15 @@ function autoCreateTable(db: DB, schema: TableSchema) {
   }
   const fields = schema.fields || defaultTableFields
   toRefIdFieldNames(schema).forEach(field => (fields[field] = 'integer'))
-  const fieldsSql = Object.entries(fields)
-    .map(entry => entry.join(' '))
-    .join(',')
-  const sql = `create table if not exists "${schema.table}" (${fieldsSql})`
+  const bodySqls = Object.entries(fields).map(nameAndType =>
+    nameAndType.join(' '),
+  )
+  if (schema.primaryKeys) {
+    const fields = schema.primaryKeys.map(escapeField).join(',')
+    bodySqls.push(`primary key (${fields})`)
+  }
+  const bodySql = bodySqls.join(',')
+  const sql = `create table if not exists "${schema.table}" (${bodySql})`
   db.exec(sql)
 }
 
@@ -172,17 +183,17 @@ function makeInsertRowFn(db: DB, table: string): InsertRowFn {
 function makeDeduplicatedInsertRowFn(
   options: {
     select: Statement
-    deduplicateField: string
+    deduplicateFields: string[]
     idField: string
   },
   insertRowFn: InsertRowFn,
 ): InsertRowFn {
-  const deduplicateField = options.deduplicateField
+  const deduplicateFields = options.deduplicateFields
   const idField = options.idField
   const select = options.select
   return row => {
-    const fieldData = row[deduplicateField]
-    const matchedRow = select.get(fieldData)
+    const selectArgs = deduplicateFields.map(field => row[field])
+    const matchedRow = select.get(...selectArgs)
     if (matchedRow) {
       return matchedRow[idField]
     }
@@ -192,11 +203,9 @@ function makeDeduplicatedInsertRowFn(
 
 export type DeduplicatedTableSchema = {
   table: string
-  deduplicateField: string
+  deduplicateFields: string[]
   idField: string
-} & CacheOptions &
-  AutoCreateOptions &
-  CreateOptions
+} & Omit<TableSchema, 'deduplicateFields' | 'idField'>
 
 export function makeDeduplicatedInsertRowFnFromSchema(
   db: DB,
@@ -205,15 +214,16 @@ export function makeDeduplicatedInsertRowFnFromSchema(
 ): InsertRowFn {
   autoCreateIndexFromDeduplicatedSchema(db, schema)
   const idField = schema.idField
-  const deduplicateField = schema.deduplicateField
+  const deduplicateFields = schema.deduplicateFields
+  const whereSql = deduplicateFields.map(field => `"${field}" = ?`).join(' or ')
   const select: Statement = db.prepare(
-    `select "${idField}" from "${schema.table}" where "${deduplicateField}" = ?`,
+    `select "${idField}" from "${schema.table}" where ${whereSql}`,
   )
   const deduplicatedInsertRowFn = makeDeduplicatedInsertRowFn(
     {
       select,
       idField,
-      deduplicateField,
+      deduplicateFields,
     },
     insertRowFn,
   )
@@ -222,8 +232,8 @@ export function makeDeduplicatedInsertRowFnFromSchema(
     return deduplicatedInsertRowFn
   }
   return row => {
-    const fieldData = row[deduplicateField]
-    return cache.get(fieldData, () => deduplicatedInsertRowFn(row))
+    const key = JSON.stringify(deduplicateFields.map(field => row[field]))
+    return cache.get(key, () => deduplicatedInsertRowFn(row))
   }
 }
 
@@ -234,7 +244,7 @@ function autoCreateIndexFromDeduplicatedSchema(
   if (!schema.autoCreateIndex) {
     return
   }
-  createUniqueIndexIfNotExist(db, schema.deduplicateField)
+  createUniqueIndexIfNotExist(db, schema.table, schema.deduplicateFields)
 }
 
 type MapRowFn = <T>(row: T) => T
@@ -320,17 +330,12 @@ function makeGetRefIdFn(refField: CacheOptions): GetRefIdFn {
   return getRefId
 }
 
-function createRefTableIfNotExist(db: DB, field: string, idField: string) {
-  db.exec(`create table if not exists "${field}" (
-  "${idField}" integer primary key,
-  ${field} text
-);`)
+function createRefTableIfNotExist(db: DB, schema: RefFieldSchema) {
+  db.exec(makeCreateRefTableSql(schema))
 }
 
-function createUniqueIndexIfNotExist(db: DB, field: string) {
-  db.exec(
-    `create unique index if not exists "${field}_idx" on "${field}" ("${field}")`,
-  )
+function createUniqueIndexIfNotExist(db: DB, table: string, fields: string[]) {
+  db.exec(makeUniqueIndexSql(table, fields))
 }
 
 export type InsertRefSqls = {
@@ -341,18 +346,16 @@ export type InsertRefSqls = {
 
 export function makeInsertRefSqls(
   db: DB,
-  schema: {
-    field: string
-    idField: string
-  } & AutoCreateOptions,
+  schema: RefFieldSchema,
 ): InsertRefSqls {
   const field = schema.field
+  const table = field
   const idField = schema.idField
   if (schema.autoCreateTable) {
-    createRefTableIfNotExist(db, field, idField)
+    createRefTableIfNotExist(db, schema)
   }
   if (schema.autoCreateIndex) {
-    createUniqueIndexIfNotExist(db, field)
+    createUniqueIndexIfNotExist(db, table, [field])
   }
   const select = db.prepare(
     `select "${idField}" from "${field}" where "${field}" = ? limit 1`,
@@ -361,7 +364,12 @@ export function makeInsertRefSqls(
   return { select, insert, idField }
 }
 
-function getRefId(refSqls: InsertRefSqls, fieldData: any): number {
+function getRefId(refSqls: InsertRefSqls, fieldData: undefined | null): null
+function getRefId(refSqls: InsertRefSqls, fieldData: any): number
+function getRefId(refSqls: InsertRefSqls, fieldData: any): number | null {
+  if (fieldData === undefined || fieldData === null) {
+    return null
+  }
   const row = refSqls.select.get(fieldData)
   if (row) {
     return row[refSqls.idField]
@@ -371,7 +379,9 @@ function getRefId(refSqls: InsertRefSqls, fieldData: any): number {
 
 function makeCachedGetRefIdFn(cache: Cache<number>): GetRefIdFn {
   return (refSqls, fieldData) =>
-    cache.get(fieldData, () => getRefId(refSqls, fieldData))
+    fieldData === undefined || fieldData === null
+      ? null
+      : cache.get(fieldData, () => getRefId(refSqls, fieldData))
 }
 
 export type Bool = 0 | 1
@@ -394,7 +404,7 @@ export type SqliteMasterRow = {
   sql: string
 }
 
-export function getIndices(db: DB, table: string): SqliteMasterRow[] {
+export function getTableIndices(db: DB, table: string): SqliteMasterRow[] {
   return db
     .prepare(
       `select * from sqlite_master where type = 'index' and tbl_name = ?`,
@@ -402,25 +412,58 @@ export function getIndices(db: DB, table: string): SqliteMasterRow[] {
     .all(table)
 }
 
-export function getTables(db: DB): SqliteMasterRow[] {
+export function getAllTables(db: DB): SqliteMasterRow[] {
   return db.prepare(`select * from sqlite_master where type = 'table'`).all()
 }
 
-export function removeIndices(db: DB, table: string) {
-  getIndices(db, table).forEach(row => {
+export function getAllIndices(db: DB): SqliteMasterRow[] {
+  return db.prepare(`select * from sqlite_master where type = 'index'`).all()
+}
+
+export function removeTableIndices(db: DB, table: string) {
+  getTableIndices(db, table).forEach(row => {
     db.exec(`drop index if exists "${row.name}"`)
   })
 }
 
-export function removeAllIndices(db: DB, options?: { skip_vacuum?: boolean }) {
-  db.prepare(`select name from sqlite_master where type = 'index'`)
-    .all()
-    .forEach(row => {
-      db.exec(`drop index if exists "${row.name}"`)
-    })
-  if (options?.skip_vacuum) {
-    return
-  }
+/** remove all indices, including those for primary key */
+export function removeTableIndicesAndPrimaryKeys(db: DB, table: string) {
+  db.transaction(recreateTable)(db, table)
+}
+
+/** remove all indices, including those for primary key */
+export function removeAllTableIndicesAndPrimaryKeys(db: DB) {
+  db.transaction(recreateAllTable)(db)
+}
+
+function recreateAllTable(db: DB) {
+  getAllTables(db).forEach(row => recreateTable(db, row.name))
+}
+
+function recreateTable(db: DB, table: string) {
+  db.exec(`
+create table "tmp_${table}" as select * from "${table}";
+drop table "${table}";
+alter table "tmp_${table}" rename to "${table}";
+`)
+}
+
+export function removeAllIndices(db: DB) {
+  getAllIndices(db).forEach(row => {
+    if (!row.sql) {
+      return // skip index of primary key
+    }
+    db.exec(`drop index if exists "${row.name}"`)
+  })
+}
+
+export function removeAllTables(db: DB) {
+  getAllTables(db).forEach(row => {
+    db.exec(`drop table if exists "${row.name}"`)
+  })
+}
+
+export function vacuum(db: DB) {
   db.exec(`VACUUM`)
 }
 
@@ -725,4 +768,23 @@ export function cacheAllRefFields(schema: TableSchema) {
   const cacheFields = new Set<string>(schema.cacheFields)
   toRefFieldNames(schema).forEach(field => cacheFields.add(field))
   schema.cacheFields = Array.from(cacheFields)
+}
+
+export function escapeField(field: string): string {
+  return JSON.stringify(field)
+}
+
+export function makeCreateRefTableSql(schema: RefFieldSchema) {
+  const field = schema.field
+  const idField = schema.idField
+  const type = schema.type ? ' ' + schema.type : ''
+  return `create table if not exists "${field}" (
+  "${idField}" integer primary key,
+  "${field}"${type}
+)`
+}
+
+export function makeUniqueIndexSql(table: string, fields: string[]) {
+  const fieldsSql = fields.map(escapeField).join(',')
+  return `create unique index if not exists "${table}_unique_idx" on "${table}" (${fieldsSql})`
 }
