@@ -1,4 +1,6 @@
 import fs from 'fs'
+import '../src'
+
 describe('ts-jest setup', () => {
   it('should be able to compile', () => {
     expect(fs.existsSync('package.json')).toBeTruthy()
