@@ -245,6 +245,7 @@ function makeDeduplicatedTable(schema: DeduplicatedTableSchema) {
 
   const insertFnName = 'deduplicatedInsert' + tableName
 
+  // TODO support cache
   return `
 db.exec(\`${indexSql}\`)
 export const ${select}: Statement = db.prepare(\`${selectSql}\`)
