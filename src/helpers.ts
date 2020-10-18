@@ -788,3 +788,21 @@ export function makeUniqueIndexSql(table: string, fields: string[]) {
   const fieldsSql = fields.map(escapeField).join(',')
   return `create unique index if not exists "${table}_unique_idx" on "${table}" (${fieldsSql})`
 }
+
+export function toExportMode(db: DB, cache_size?: number) {
+  db.exec(`PRAGMA synchronous = OFF`)
+  db.exec(`PRAGMA journal_mode = MEMORY`)
+  setCacheSize(db, cache_size)
+}
+
+export function toSafeMode(db: DB, cache_size?: number) {
+  setCacheSize(db, cache_size)
+  db.exec(`PRAGMA journal_mode = WAL`)
+  db.exec(`PRAGMA synchronous = ON`)
+}
+
+function setCacheSize(db: DB, cache_size?: number) {
+  if (typeof cache_size === 'number') {
+    db.exec(`PRAGMA cache_size = ${cache_size}`)
+  }
+}
