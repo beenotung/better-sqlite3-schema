@@ -9,6 +9,7 @@ import {
   toRefIdFieldNames,
   toRefSchemas,
 } from './helpers'
+import { uniqueArray } from './utils/array'
 import { compare } from './utils/compare'
 import { toCamelCase } from './utils/string'
 
@@ -31,13 +32,26 @@ export function makeRowType(fields: string[]) {
 export function toFieldNames(schema: TableSchema) {
   return Object.keys(schema.fields || {}).map(escapeField)
 }
-
 export function toRowFieldNames(schema: TableSchema) {
-  return [...Object.keys(schema.fields || {}), ...toRefIdFieldNames(schema)]
+  return uniqueArray(
+    [
+      schema.idField || '',
+      ...Object.keys(schema.fields || {}),
+      ...toRefIdFieldNames(schema),
+      ...(schema.deduplicateFields || []),
+    ].filter(s => s),
+  )
 }
 
 export function toDataFieldNames(schema: TableSchema) {
-  return [...Object.keys(schema.fields || {}), ...toRefFieldNames(schema)]
+  return uniqueArray(
+    [
+      schema.idField || '',
+      ...Object.keys(schema.fields || {}),
+      ...toRefFieldNames(schema),
+      ...(schema.deduplicateFields || []),
+    ].filter(s => s),
+  )
 }
 
 export function makeCreateTableSql(schema: TableSchema) {
