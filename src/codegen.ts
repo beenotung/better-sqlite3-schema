@@ -94,7 +94,7 @@ export function makeTable(schema: MaybeDeduplicatedTableSchema) {
   const insertSql = makeInsertSql(schema.table, rowFields)
   const rowType = makeRowType(rowFields)
   const dataType = makeRowType(dataFields)
-  const createTableSql = makeCreateTableSql(schema)
+  const createTableSql = schema.createTableSql || makeCreateTableSql(schema)
 
   const insertRowValues = [
     ...fields.map(field => `data[${field}]`),
@@ -110,7 +110,7 @@ export function makeTable(schema: MaybeDeduplicatedTableSchema) {
 export type ${tableName}Data = ${dataType}
 export type ${tableName}Row = ${rowType}
 
-db.exec(\`${createTableSql}\`)
+${schema.autoCreateTable ? `db.exec(\`${createTableSql}\`)` : ''}
 ${schema.createIndexSql ? `db.exec(\`${schema.createIndexSql}\`)` : ''}
 const ${insertName} = db.prepare(\`${insertSql}\`)
 
@@ -190,8 +190,11 @@ export function makeRefTables(schemas: TableSchema[]) {
       const insert = makeInsertStatementName(field)
       const insertSql = `insert into "${field}" ("${field}") values (?)`
 
-      let code = `
+      let code = ''
+      if (refSchema.autoCreateTable) {
+        code += `
 db.exec(\`${createTableSql}\`)`
+      }
       if (refSchema.autoCreateIndex) {
         code += `
 db.exec(\`${createIndexSql}\`)`
@@ -222,7 +225,8 @@ function makeDeduplicatedTable(schema: DeduplicatedTableSchema) {
   const deduplicateFields = schema.deduplicateFields
   const rowFields = toRowFieldNames(schema)
 
-  const indexSql = makeUniqueIndexSql(table, deduplicateFields)
+  const indexSql =
+    schema.createIndexSql || makeUniqueIndexSql(table, deduplicateFields)
 
   const select = makeCountStatementName(idField)
   const selectSql = `select count(*) count from "${table}" where "${idField}" = ?`
@@ -247,7 +251,7 @@ function makeDeduplicatedTable(schema: DeduplicatedTableSchema) {
 
   // TODO support cache
   return `
-db.exec(\`${indexSql}\`)
+${schema.autoCreateIndex ? `db.exec(\`${indexSql}\`)` : ''}
 export const ${select}: Statement = db.prepare(\`${selectSql}\`)
 export const ${insert}: Statement = db.prepare(\`${insertSql}\`)
 
