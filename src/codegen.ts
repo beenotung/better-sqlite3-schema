@@ -269,11 +269,15 @@ ${insertRowValues.map(field => '      ' + field).join(',\n')}
 `
 }
 
-export function makeImports(schemas: TableSchema[]): string {
+export function makeImports(
+  schemas: TableSchema[],
+  extraImports?: string[],
+): string {
   const imports: string[] = [
     `import { Statement } from 'better-sqlite3'`,
     `import { SqliteDataType } from 'better-sqlite3-schema'`,
     `import Integer from 'integer'`,
+    ...(extraImports || []),
   ]
   const hasCache = schemas.some(schema =>
     schema.refFields?.some(refField => {
