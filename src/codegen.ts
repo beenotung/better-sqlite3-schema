@@ -29,8 +29,14 @@ export function makeRowType(fields: string[]) {
   return `Partial<Record<${keys}, SqliteDataType>>`
 }
 
-export function toFieldNames(schema: TableSchema) {
-  return Object.keys(schema.fields || {}).map(escapeField)
+export function toFieldNames(schema: TableSchema): string[] {
+  return uniqueArray(
+    [
+      schema.idField || '',
+      ...Object.keys(schema.fields || {}),
+      ...(schema.deduplicateFields || []),
+    ].filter(s => s),
+  ).map(escapeField)
 }
 export function toRowFieldNames(schema: TableSchema) {
   return uniqueArray(
