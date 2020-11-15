@@ -1,5 +1,6 @@
 import { Statement } from 'better-sqlite3'
 import DB, { BetterSqlite3Helper } from 'better-sqlite3-helper'
+import { IntLike } from 'integer'
 import { Cache, newCache } from './utils/cache'
 import { chain } from './utils/function'
 
@@ -834,4 +835,33 @@ export function getRefValueFromCache<T>(
   }
   console.error(`unknown ${name} id:`, { id, cache })
   throw new Error(`unknown ${name} id`)
+}
+
+/** select from existing record or insert and return new id */
+export function makeCachedPreparedGetRefIdFn(
+  db: DB,
+  field: string,
+  idFields = field + defaultIdFieldSuffix,
+) {
+  const select_statement = db.prepare(`
+  select "${idFields}" from "${field}"
+  where "${field}" = ?
+  `)
+  const insert_statement = db.prepare(`
+  insert into "${field}" ("${field}") values (?)
+  `)
+  const cache: any = {}
+  return (fieldData: string): IntLike => {
+    if (fieldData in cache) {
+      return cache[fieldData]
+    }
+    const row = select_statement.get(fieldData)
+    let id: IntLike
+    if (row) {
+      id = row[idFields]
+    } else {
+      id = insert_statement.run(fieldData).lastInsertRowid
+    }
+    return (cache[fieldData] = id)
+  }
 }
