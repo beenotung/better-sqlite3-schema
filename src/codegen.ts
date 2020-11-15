@@ -38,7 +38,8 @@ export function toFieldNames(schema: TableSchema): string[] {
     ].filter(s => s),
   ).map(escapeField)
 }
-export function toRowFieldNames(schema: TableSchema) {
+
+export function toRowFieldNames(schema: TableSchema): string[] {
   return uniqueArray(
     [
       schema.idField || '',
@@ -49,7 +50,7 @@ export function toRowFieldNames(schema: TableSchema) {
   )
 }
 
-export function toDataFieldNames(schema: TableSchema) {
+export function toDataFieldNames(schema: TableSchema): string[] {
   return uniqueArray(
     [
       schema.idField || '',
