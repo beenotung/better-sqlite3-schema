@@ -806,3 +806,32 @@ function setCacheSize(db: DB, cache_size?: number) {
     db.exec(`PRAGMA cache_size = ${cache_size}`)
   }
 }
+
+export type RefCache<T> = Record<string | number, T>
+
+export function loadAllRefCache<T>(
+  db: DB,
+  field: string,
+  idField: string = field + defaultIdFieldSuffix,
+): RefCache<T> {
+  const cache: Record<string | number, T> = {}
+  for (const row of db
+    .prepare(`select ${idField}, ${field} from ${field}`)
+    .iterate()) {
+    const id = row[idField]
+    cache[id] = row[field]
+  }
+  return cache
+}
+
+export function getRefValueFromCache<T>(
+  cache: RefCache<T>,
+  id: string | number,
+  name = 'ref value',
+) {
+  if (id in cache) {
+    return cache[id]
+  }
+  console.error(`unknown ${name} id:`, { id, cache })
+  throw new Error(`unknown ${name} id`)
+}
