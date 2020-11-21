@@ -837,31 +837,74 @@ export function getRefValueFromCache<T>(
   throw new Error(`unknown ${name} id`)
 }
 
-/** select from existing record or insert and return new id */
+/**
+ * select from existing record or insert and return new id
+ * @deprecated use makeCachedPreparedRefFns() instead
+ * */
 export function makeCachedPreparedGetRefIdFn(
   db: DB,
   field: string,
   idFields = field + defaultIdFieldSuffix,
 ) {
-  const select_statement = db.prepare(`
+  return makeCachedPreparedRefFns(db, field, idFields).getRefId
+}
+
+export function makeCachedPreparedRefFns(
+  db: DB,
+  field: string,
+  idFields = field + defaultIdFieldSuffix,
+) {
+  const select_id_statement = db.prepare(`
   select "${idFields}" from "${field}"
   where "${field}" = ?
   `)
+
+  const select_val_statement = db.prepare(`
+  select "${field}" from "${field}"
+  where "${idFields}" = ?`)
+
   const insert_statement = db.prepare(`
   insert into "${field}" ("${field}") values (?)
   `)
-  const cache: any = {}
-  return (fieldData: string): IntLike => {
-    if (fieldData in cache) {
-      return cache[fieldData]
+
+  const id_cache: any = {}
+  const val_cache: any = {}
+
+  /** select from existing record or insert and return new id */
+  function getRefId(value: string): IntLike {
+    if (value in val_cache) {
+      return val_cache[value]
     }
-    const row = select_statement.get(fieldData)
+    const row = select_id_statement.get(value)
     let id: IntLike
     if (row) {
       id = row[idFields]
     } else {
-      id = insert_statement.run(fieldData).lastInsertRowid
+      id = insert_statement.run(value).lastInsertRowid
     }
-    return (cache[fieldData] = id)
+    val_cache[value] = id
+    return id
+  }
+
+  function getRefValue(id: IntLike) {
+    id = id as string
+    if (id in id_cache) {
+      return id_cache[id]
+    }
+    const row = select_val_statement.get(id)
+    if (!row) {
+      console.error(`unknown "${field}" id:`, id)
+      throw new Error(`unknown "${field}" id`)
+    }
+    const value = row[field]
+    id_cache[id] = value
+    return value
+  }
+
+  return {
+    getRefValue,
+    getRefId,
+    val_cache,
+    id_cache,
   }
 }
