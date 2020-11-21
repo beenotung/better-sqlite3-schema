@@ -12,7 +12,17 @@ create table if not exists "name" (
   "name" text unique
 );
 `)
-const { getRefId, getRefValue } = makeCachedPreparedRefFns(db, 'name', 'id')
+const {
+  getRefId,
+  getRefValue,
+  populateCache,
+  val_cache,
+  id_cache,
+} = makeCachedPreparedRefFns(db, 'name', 'id')
+
+populateCache()
+console.log({ id_cache, val_cache })
+
 let maxId = 0
 for (let i = 0; i < 100; i++) {
   const name = Random.element(allNames)

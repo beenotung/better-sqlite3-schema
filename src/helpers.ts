@@ -866,6 +866,9 @@ export function makeCachedPreparedRefFns(
   const insert_statement = db.prepare(`
   insert into "${field}" ("${field}") values (?)
   `)
+  const select_all_statement = db.prepare(`
+  select "${idFields}","${field}" from "${field}"
+  `)
 
   const id_cache: any = {}
   const val_cache: any = {}
@@ -901,9 +904,19 @@ export function makeCachedPreparedRefFns(
     return value
   }
 
+  function populateCache() {
+    for (const row of select_all_statement.all()) {
+      const id = row[idFields]
+      const val = row[field]
+      id_cache[id] = val
+      val_cache[val] = id
+    }
+  }
+
   return {
     getRefValue,
     getRefId,
+    populateCache,
     val_cache,
     id_cache,
   }
