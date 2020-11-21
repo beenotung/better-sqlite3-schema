@@ -921,3 +921,49 @@ export function makeCachedPreparedRefFns(
     id_cache,
   }
 }
+
+export function makePreparedRefFns(
+  db: DB,
+  field: string,
+  idFields = field + defaultIdFieldSuffix,
+) {
+  const select_id_statement = db.prepare(`
+  select "${idFields}" from "${field}"
+  where "${field}" = ?
+  `)
+
+  const select_val_statement = db.prepare(`
+  select "${field}" from "${field}"
+  where "${idFields}" = ?`)
+
+  const insert_statement = db.prepare(`
+  insert into "${field}" ("${field}") values (?)
+  `)
+
+  /** select from existing record or insert and return new id */
+  function getRefId(value: string): IntLike {
+    const row = select_id_statement.get(value)
+    let id: IntLike
+    if (row) {
+      id = row[idFields]
+    } else {
+      id = insert_statement.run(value).lastInsertRowid
+    }
+    return id
+  }
+
+  function getRefValue(id: IntLike) {
+    id = id as string
+    const row = select_val_statement.get(id)
+    if (!row) {
+      console.error(`unknown "${field}" id:`, id)
+      throw new Error(`unknown "${field}" id`)
+    }
+    return row[field]
+  }
+
+  return {
+    getRefValue,
+    getRefId,
+  }
+}
