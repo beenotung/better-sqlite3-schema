@@ -799,7 +799,7 @@ export function toExportMode(db: DB, cache_size?: number) {
 export function toSafeMode(db: DB, cache_size?: number) {
   setCacheSize(db, cache_size)
   db.exec(`PRAGMA journal_mode = WAL`)
-  db.exec(`PRAGMA synchronous = ON`)
+  db.exec(`PRAGMA synchronous = NORMAL`)
 }
 
 function setCacheSize(db: DB, cache_size?: number) {
