@@ -515,7 +515,7 @@ export function toSqliteDataType(fieldData: any): string {
     case 'string':
       return 'text'
     case 'boolean':
-      return 'boolean'
+      return 'integer'
     case 'object':
       return 'json'
     case 'number': {
