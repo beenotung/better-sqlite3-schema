@@ -468,6 +468,11 @@ export function vacuum(db: DB) {
   db.exec(`VACUUM`)
 }
 
+export function setUnsafeMode(db: DB, enable: boolean) {
+  const rawDB: any = db.connection()
+  rawDB.unsafeMode(enable)
+}
+
 export type TableInfo = {
   table: string
   fields: TableFields
