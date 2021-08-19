@@ -1,5 +1,6 @@
 export * from './types'
 export * from './helpers'
+export * from './db'
 export { chain } from './utils/function'
 export { newCache, Cache } from './utils/cache'
 export { toCamelCase } from './utils/string'
