@@ -1,11 +1,12 @@
 import fs from 'fs'
 import path from 'path'
 import { newDB } from '../src/db'
+import { expect } from 'chai'
 
 describe('multi-db', () => {
   let file1 = path.join('data', 'db1')
   let file2 = path.join('data', 'db2')
-  beforeAll(() => {
+  before(() => {
     if (!fs.existsSync('data')) {
       fs.mkdirSync('data')
     }
@@ -20,8 +21,8 @@ describe('multi-db', () => {
     let db2 = newDB({ path: file2, migrate: false })
     db1.exec('select 1')
     db2.exec('select 2')
-    expect(db1).not.toEqual(db2)
-    expect(fs.existsSync(file1)).toBeTruthy()
-    expect(fs.existsSync(file2)).toBeTruthy()
+    expect(db1).not.to.equals(db2)
+    expect(fs.existsSync(file1)).to.be.true
+    expect(fs.existsSync(file2)).to.be.true
   })
 })

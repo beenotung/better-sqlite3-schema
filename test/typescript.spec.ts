@@ -1,11 +1,12 @@
 import fs from 'fs'
 import '../src'
+import { expect } from 'chai'
 
-describe('ts-jest setup', () => {
+describe('typescript setup', () => {
   it('should be able to compile', () => {
-    expect(fs.existsSync('package.json')).toBeTruthy()
+    expect(fs.existsSync('package.json')).to.be.true
     const text = fs.readFileSync('package.json').toString()
     const json = JSON.parse(text)
-    expect(json).toBeDefined()
+    expect(json).not.undefined
   })
 })
