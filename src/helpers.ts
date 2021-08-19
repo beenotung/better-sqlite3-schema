@@ -3,6 +3,7 @@ import DB, { BetterSqlite3Helper } from 'better-sqlite3-helper'
 import { IntLike } from 'integer'
 import { Cache, newCache } from './utils/cache'
 import { chain } from './utils/function'
+import { Int } from './types'
 
 export type DB = BetterSqlite3Helper.DBInstance
 export type DBInstance = DB
@@ -76,7 +77,7 @@ type InsertRefField = {
   insert: Statement
   getRefIdFn: GetRefIdFn
 }
-type GetRefIdFn = (refSqls: InsertRefSqls, fieldData: any) => number | null
+type GetRefIdFn = (refSqls: InsertRefSqls, fieldData: any) => Int | null
 
 export type InsertRowFn = (row: any) => number
 
@@ -366,8 +367,8 @@ export function makeInsertRefSqls(
 }
 
 function getRefId(refSqls: InsertRefSqls, fieldData: undefined | null): null
-function getRefId(refSqls: InsertRefSqls, fieldData: any): number
-function getRefId(refSqls: InsertRefSqls, fieldData: any): number | null {
+function getRefId(refSqls: InsertRefSqls, fieldData: any): Int
+function getRefId(refSqls: InsertRefSqls, fieldData: any): Int | null {
   if (fieldData === undefined || fieldData === null) {
     return null
   }
@@ -375,10 +376,10 @@ function getRefId(refSqls: InsertRefSqls, fieldData: any): number | null {
   if (row) {
     return row[refSqls.idField]
   }
-  return +refSqls.insert.run(fieldData).lastInsertRowid
+  return refSqls.insert.run(fieldData).lastInsertRowid
 }
 
-function makeCachedGetRefIdFn(cache: Cache<number>): GetRefIdFn {
+function makeCachedGetRefIdFn(cache: Cache<Int>): GetRefIdFn {
   return (refSqls, fieldData) =>
     fieldData === undefined || fieldData === null
       ? null
@@ -879,12 +880,12 @@ export function makeCachedPreparedRefFns(
   const val_cache: any = {}
 
   /** select from existing record or insert and return new id */
-  function getRefId(value: string): IntLike {
+  function getRefId(value: string): Int {
     if (value in val_cache) {
       return val_cache[value]
     }
     const row = select_id_statement.get(value)
-    let id: IntLike
+    let id: Int
     if (row) {
       id = row[idFields]
     } else {
@@ -946,9 +947,9 @@ export function makePreparedRefFns(
   `)
 
   /** select from existing record or insert and return new id */
-  function getRefId(value: string): IntLike {
+  function getRefId(value: string): Int {
     const row = select_id_statement.get(value)
-    let id: IntLike
+    let id: Int
     if (row) {
       id = row[idFields]
     } else {

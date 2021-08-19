@@ -17,14 +17,14 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "npm run rawtest",
+    "test": "run-s format build jest",
     "clean": "rimraf dist",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "prebuild": "npm run clean",
-    "build": "tsc -p tsconfig.build.json",
-    "postbuild": "mk-package",
-    "pretest": "npm run format && npm run build",
-    "rawtest": "ts-node test/index.ts && jest",
+    "build": "run-s clean tsc mk-package",
+    "tsc": "tsc -p tsconfig.build.json",
+    "tsc:watch":"tsc --noEmit --watch",
+    "mk-package": "mk-package",
+    "jest": "jest",
     "prepublishOnly": "npm run rawtest && npm run build"
   },
   "husky": {
@@ -39,24 +39,26 @@
     "dist"
   ],
   "dependencies": {
-    "better-sqlite3": "^7.1.0",
-    "better-sqlite3-helper": "^3.1.0",
-    "tslib": "^2.0.1"
+    "better-sqlite3": "^7.4.3",
+    "better-sqlite3-helper": "^3.1.4",
+    "tslib": "^2.3.1"
   },
   "devDependencies": {
-    "@beenotung/tslib": "^16.35.0",
-    "@types/better-sqlite3": "^5.4.0",
-    "@types/jest": "^26.0.14",
+    "@beenotung/tslib": "^17.6.1",
+    "@types/better-sqlite3": "^7.4.0",
+    "@types/integer": "^4.0.1",
+    "@types/jest": "^27.0.1",
     "@types/node": "*",
-    "husky": "^4.3.0",
-    "jest": "^26.4.2",
-    "mk-package": "^1.0.0",
-    "prettier": "^2.1.2",
+    "husky": "^7.0.1",
+    "jest": "^27.0.6",
+    "mk-package": "^1.0.1",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.3.2",
     "rimraf": "^3.0.2",
-    "ts-jest": "^26.4.1",
-    "ts-node": "^9.0.0",
-    "tsc-macro": "^0.1.2",
-    "typescript": "^4.0.3"
+    "ts-jest": "^27.0.5",
+    "ts-node": "^10.2.1",
+    "tsc-macro": "^0.1.3",
+    "typescript": "^4.3.5"
   },
   "repository": {
     "type": "git",

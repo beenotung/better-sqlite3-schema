@@ -12,13 +12,8 @@ create table if not exists "name" (
   "name" text unique
 );
 `)
-const {
-  getRefId,
-  getRefValue,
-  populateCache,
-  val_cache,
-  id_cache,
-} = makeCachedPreparedRefFns(db, 'name', 'id')
+const { getRefId, getRefValue, populateCache, val_cache, id_cache } =
+  makeCachedPreparedRefFns(db, 'name', 'id')
 
 populateCache()
 console.log({ id_cache, val_cache })
