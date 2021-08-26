@@ -4,6 +4,7 @@ import { IntLike } from 'integer'
 import { Cache, newCache } from './utils/cache'
 import { chain } from './utils/function'
 import { Int } from './types'
+import { newDB } from './db'
 
 export type DB = BetterSqlite3Helper.DBInstance
 export type DBInstance = DB
@@ -29,7 +30,7 @@ export function createDB(options: CreateDBOptions) {
     delDBFile(file)
   }
   delete options.mode
-  return DB({
+  return newDB({
     path: file,
     migrate: false,
     ...options,
