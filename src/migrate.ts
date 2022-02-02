@@ -2,7 +2,12 @@ import { DBInstance } from './helpers'
 
 export const DefaultMigrationTable = 'migrations'
 
-export type MigrationItem = { name: string; up: string; down: string }
+export type MigrationItem = {
+  name: string
+  is_multiple_statements?: boolean | 1 | 0
+  up: string
+  down: string
+}
 /**
  * This function has different from the better-sqlite3-helper behavior.
  *
@@ -22,6 +27,7 @@ create table if not exists ${table} (
 , name text not null
 , up text not null
 , down text not null
+, is_multiple_statements integer default 0 not null
 );
 `)
   const select = db.prepare(`
@@ -31,14 +37,19 @@ limit 1
 `)
   const insert = db.prepare(`
 insert into ${table}
-(name, up, down)
+(name, up, down, is_multiple_statements)
 values
-(:name, :up, :down)
+(:name, :up, :down, :is_multiple_statements)
 `)
   options.migrations.forEach(
-    db.transaction(migrate => {
+    db.transaction((migrate: MigrationItem) => {
       if (select.get(migrate.name)) return
-      db.run(migrate.up)
+      run({
+        db,
+        is_multiple_statements: migrate.is_multiple_statements,
+        sql: migrate.up,
+      })
+      migrate.is_multiple_statements = migrate.is_multiple_statements ? 1 : 0
       insert.run(migrate)
     }),
   )
@@ -52,8 +63,14 @@ export function migrateDown(options: {
 }) {
   const db = options.db
   const table = options.table || DefaultMigrationTable
-  const row = db
-    .prepare(`select id, down from ${table} where name = ?`)
+  const row: null | {
+    id: number
+    down: string
+    is_multiple_statements: 1 | 0
+  } = db
+    .prepare(
+      `select id, down, is_multiple_statements from ${table} where name = ?`,
+    )
     .get(options.name)
   if (!row) {
     if (options.throw) throw new Error('migration not found')
@@ -61,7 +78,11 @@ export function migrateDown(options: {
   }
   const delete_row = db.prepare(`delete from ${table} where id = ?`)
   db.transaction(() => {
-    db.run(row.down)
+    run({
+      db,
+      is_multiple_statements: row.is_multiple_statements,
+      sql: row.down,
+    })
     delete_row.run(row.id)
   })()
 }
@@ -87,7 +108,7 @@ export function migrateDownUntil(options: {
   const delete_row = db.prepare(`delete from ${table} where id = ?`)
   db.prepare(
     `
-select id, down
+select id, down, is_multiple_statements
 from ${table}
 where id >= ?
 `,
@@ -95,8 +116,33 @@ where id >= ?
     .all(lastRow.id)
     .forEach(
       db.transaction(row => {
-        db.run(row.down)
+        run({
+          db,
+          is_multiple_statements: row.is_multiple_statements,
+          sql: row.down,
+        })
         delete_row.run(row.id)
       }),
     )
+}
+
+function run({
+  db,
+  sql,
+  is_multiple_statements,
+}: {
+  db: DBInstance
+  sql: string
+  is_multiple_statements: boolean | undefined | 1 | 0
+}) {
+  let list = [sql]
+  if (is_multiple_statements) {
+    list = sql.split(';')
+  }
+  list.forEach(sql => {
+    sql = sql.trim()
+    if (sql) {
+      db.run(sql)
+    }
+  })
 }

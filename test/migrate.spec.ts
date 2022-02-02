@@ -77,4 +77,70 @@ describe('migrate.ts TestSuit', () => {
     migrateDownUntil({ db, name: migrations[0].name })
     expect(count_user.get()).to.equals(0)
   })
+  it('should be able to run multiple statements in a migration if stated explicitly', () => {
+    const count_user = db.prepare(`select count(*) as count from user`).pluck()
+    expect(count_user.get()).to.equals(0)
+    migrateUp({
+      db,
+      migrations: [
+        {
+          name: 'seed-users',
+          is_multiple_statements: true,
+          up: /* sql */ `
+insert into user (username) values ('user-1');
+insert into user (username) values ('user-2');
+insert into user (username) values ('user-3');
+`,
+          down: /* sql */ `
+delete from user where username = 'user-1';
+delete from user where username = 'user-2';
+delete from user where username = 'user-3';
+`,
+        },
+      ],
+    })
+    expect(count_user.get()).to.equals(3)
+    migrateDown({ db, name: 'seed-users' })
+    expect(count_user.get()).to.equals(0)
+  })
+  it('should not run multiple statement in a single migration if not stated explicitly', () => {
+    const count_user = db.prepare(`select count(*) as count from user`).pluck()
+    expect(() =>
+      migrateUp({
+        db,
+        migrations: [
+          {
+            name: 'single-statement',
+            up: /* sql */ `
+insert into user (username) values ('user-1');
+insert into user (username) values ('user-2')
+`,
+            down: /* sql */ `
+delete from user where username = 'user-1';
+delete from user where username = 'user-2'
+`,
+          },
+        ],
+      }),
+    ).to.throw
+
+    expect(count_user.get()).to.equals(0)
+    migrateUp({
+      db,
+      migrations: [
+        {
+          name: 'single-statement',
+          up: /* sql */ `
+insert into user (username) values ('user-1;2')
+`,
+          down: /* sql */ `
+delete from user where username = 'user-1;2'
+`,
+        },
+      ],
+    })
+    expect(count_user.get()).to.equals(1)
+    migrateDown({ db, name: 'single-statement' })
+    expect(count_user.get()).to.equals(0)
+  })
 })
