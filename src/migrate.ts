@@ -68,7 +68,6 @@ export function migrateDown(options: {
 
 /**
  * rollback all the migrations until 'name' (inclusive)
- *
  */
 export function migrateDownUntil(options: {
   db: DBInstance
