@@ -1,6 +1,6 @@
 {
   "name": "better-sqlite3-schema",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "Migrate (nested and multi-dimensional) json data to/from sqlite database with better-sqlite3-helper",
   "keywords": [
     "helper",
