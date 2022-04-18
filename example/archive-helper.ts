@@ -11,15 +11,6 @@ migrateUp({
       is_multiple_statements: 1,
       name: 'create-tables',
       up: /* sql */ `
-create table if not exists migrations (
-  id integer primary key
-, name text not null
-, up text not null
-, down text not null
-, is_multiple_statements integer not null
-, created_at text not null default CURRENT_TIMESTAMP
-, updated_at text null
-);
 create table if not exists user (
   id integer primary key
 , uid integer not null
@@ -121,7 +112,6 @@ drop table if exists thread_type;
 drop table if exists forum;
 drop table if exists tag;
 drop table if exists user;
-drop table if exists migrations;
 `,
     },
   ],

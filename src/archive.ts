@@ -13,8 +13,14 @@ export type ArchiveTableMeta = {
  *  */
 export function exportArchive(
   db: DBInstance,
-  onLine: (line: string) => void = line => console.log(line),
+  options?: {
+    onLine: (line: string) => void
+    skipTables?: string[]
+  },
 ): void {
+  const onLine = options?.onLine || defaultOnLine
+  const skipTables = options?.skipTables
+
   let select_table = db.prepare(/* sql */ `
 select name, sql
 from sqlite_master
@@ -24,6 +30,9 @@ where type = 'table'
   let table_rows = select_table.all()
   for (let table_row of table_rows) {
     let tableName = table_row.name
+    if (skipTables?.includes(tableName)) {
+      continue
+    }
     let createTable = table_row.sql
     let count = db.prepare(`select count(*) from ${tableName}`).pluck().get()
     let firstRow = db.prepare(`select * from ${tableName} limit 1`).get() || {}
@@ -44,6 +53,10 @@ where type = 'table'
       onLine(JSON.stringify(cols))
     }
   }
+}
+
+function defaultOnLine(line: string) {
+  console.log(line)
 }
 
 /**
