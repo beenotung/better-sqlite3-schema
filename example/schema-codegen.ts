@@ -1,8 +1,7 @@
 import { Statement } from 'better-sqlite3'
-import { SqliteDataType } from 'better-sqlite3-schema'
+import { SqliteDataType, Int } from 'better-sqlite3-schema'
 import { newCache } from 'better-sqlite3-schema'
-import Integer from 'integer'
-import { createDB } from '../src'
+import { createDB } from 'better-sqlite3-schema'
 import { dbfile } from './sample'
 
 export const db = createDB({ file: dbfile })
@@ -58,7 +57,7 @@ const insert_skipped_thread_statement = db.prepare(`insert into "skipped_thread"
   "reason_id"
 ) values (?,?)`)
 
-export function insertSkippedThread(data: SkippedThreadData): Integer.IntLike {
+export function insertSkippedThread(data: SkippedThreadData): Int {
 
   const reason = data["reason"]
   const reason_id =
@@ -107,7 +106,7 @@ const insert_thread_statement = db.prepare(`insert into "thread" (
   "type_id"
 ) values (?,?,?,?,?,?,?,?,?,?)`)
 
-export function insertThread(data: ThreadData): Integer.IntLike {
+export function insertThread(data: ThreadData): Int {
 
   const type = data["type"]
   const type_id =
@@ -148,7 +147,7 @@ const insert_thread_tag_statement = db.prepare(`insert into "thread_tag" (
   "tag_id"
 ) values (?,?)`)
 
-export function insertThreadTag(data: ThreadTagData): Integer.IntLike {
+export function insertThreadTag(data: ThreadTagData): Int {
 
   const tag = data["tag"]
   const tag_id =
@@ -181,7 +180,7 @@ const insert_thread_img_statement = db.prepare(`insert into "thread_img" (
   "img_id"
 ) values (?,?)`)
 
-export function insertThreadImg(data: ThreadImgData): Integer.IntLike {
+export function insertThreadImg(data: ThreadImgData): Int {
 
   const img = data["img"]
   const img_id =
@@ -214,7 +213,7 @@ const insert_author_statement = db.prepare(`insert into "author" (
   "author"
 ) values (?,?)`)
 
-export function insertAuthor(data: AuthorData): Integer.IntLike {
+export function insertAuthor(data: AuthorData): Int {
 
   return insert_author_statement.run(
     data["uid"],
@@ -229,7 +228,7 @@ export const deduplicated_insert_author_statement: Statement = db.prepare(`inser
   "author"
 ) values (?,?)`)
 
-export function deduplicatedInsertAuthor(data: AuthorData): Integer.IntLike {
+export function deduplicatedInsertAuthor(data: AuthorData): Int {
   const id = data["uid"]
   const row = count_uid_statement.get(id)
   if (!row.count) {
@@ -262,7 +261,7 @@ const insert_post_statement = db.prepare(`insert into "post" (
   "content"
 ) values (?,?,?,?,?)`)
 
-export function insertPost(data: PostData): Integer.IntLike {
+export function insertPost(data: PostData): Int {
 
   return insert_post_statement.run(
     data["pid"],
@@ -287,7 +286,7 @@ const insert_post_img_statement = db.prepare(`insert into "post_img" (
   "img_id"
 ) values (?,?)`)
 
-export function insertPostImg(data: PostImgData): Integer.IntLike {
+export function insertPostImg(data: PostImgData): Int {
 
   const img = data["img"]
   const img_id =

@@ -135,7 +135,7 @@ ${schema.autoCreateTable ? `db.exec(\`${createTableSql}\`)` : ''}
 ${schema.createIndexSql ? `db.exec(\`${schema.createIndexSql}\`)` : ''}
 const ${insertName} = db.prepare(\`${insertSql}\`)
 
-export function ${insertFnName}(data: ${tableName}Data): Integer.IntLike {
+export function ${insertFnName}(data: ${tableName}Data): Int {
 ${getRefValues}
   return ${insertName}.run(
 ${insertRowValues.map(field => '    ' + field).join(',\n')}
@@ -276,7 +276,7 @@ ${schema.autoCreateIndex ? `db.exec(\`${indexSql}\`)` : ''}
 export const ${select}: Statement = db.prepare(\`${selectSql}\`)
 export const ${insert}: Statement = db.prepare(\`${insertSql}\`)
 
-export function ${insertFnName}(data: ${tableName}Data): Integer.IntLike {
+export function ${insertFnName}(data: ${tableName}Data): Int {
   const id = data["${idField}"]
   const row = ${select}.get(id)
   if (!row.count) {
@@ -296,8 +296,7 @@ export function makeImports(
 ): string {
   const imports: string[] = [
     `import { Statement } from 'better-sqlite3'`,
-    `import { SqliteDataType } from 'better-sqlite3-schema'`,
-    `import Integer from 'integer'`,
+    `import { SqliteDataType, Int } from 'better-sqlite3-schema'`,
     ...(extraImports || []),
   ]
   const hasCache = schemas.some(schema =>

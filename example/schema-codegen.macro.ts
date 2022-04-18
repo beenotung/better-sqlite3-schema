@@ -5,7 +5,7 @@ const schemaArray = Object.values(schemas);
 
 `
 ${makeImports(schemaArray)}
-import { createDB } from '../src'
+import { createDB } from 'better-sqlite3-schema'
 import { dbfile } from './sample'
 
 export const db = createDB({ file: dbfile })
