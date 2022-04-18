@@ -4,5 +4,8 @@
   "private": true,
   "dependencies": {
     "better-sqlite3-schema": "file:.."
+  },
+  "devDependencies": {
+    "tsc-macro": "^1.0.1"
   }
 }
