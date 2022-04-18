@@ -33,7 +33,7 @@ describe('migrate.ts TestSuit', () => {
       db,
       migrations,
     })
-  })
+  }).timeout(5000)
   it('should not run existing migrations', () => {
     migrateUp({ db, migrations })
     expect(

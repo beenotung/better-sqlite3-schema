@@ -24,5 +24,5 @@ describe('multi-db', () => {
     expect(db1).not.to.equals(db2)
     expect(fs.existsSync(file1)).to.be.true
     expect(fs.existsSync(file2)).to.be.true
-  })
+  }).timeout(5000)
 })
