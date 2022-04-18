@@ -2,8 +2,6 @@ import { createDB, migrateUp } from 'better-sqlite3-schema'
 
 export const db = createDB({ file: 'data/sqlite3.db', migrate: false })
 
-
-
 migrateUp({
   db,
   migrations: [
@@ -99,7 +97,7 @@ create table if not exists image_link (
 , created_at text not null
 , updated_at text null
 );
-      `,
+      `.trim(),
       down: /* sql */ `
 drop table if exists image_link;
 drop table if exists image;
@@ -112,7 +110,7 @@ drop table if exists thread_type;
 drop table if exists forum;
 drop table if exists tag;
 drop table if exists user;
-`,
+`.trim(),
     },
   ],
 })
