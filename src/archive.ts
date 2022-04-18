@@ -14,7 +14,7 @@ export type ArchiveTableMeta = {
 export function exportArchive(
   db: DBInstance,
   options?: {
-    onLine: (line: string) => void
+    onLine?: (line: string) => void
     skipTables?: string[]
   },
 ): void {
