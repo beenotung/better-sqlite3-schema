@@ -9,7 +9,6 @@ dist/
 .env
 
 # test data
-res/sample.txt
 db.sqlite3*
-data/db1
-data/db2
+res/
+data/
