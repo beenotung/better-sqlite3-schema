@@ -1,6 +1,6 @@
 import { DBInstance } from './helpers'
 
-export const DefaultMigrationTable = 'migrations'
+export const DefaultMigrationTable = 'migration'
 
 export type MigrationItem = {
   name: string
@@ -16,7 +16,7 @@ export type MigrationItem = {
  */
 export function migrateUp(options: {
   db: DBInstance
-  table?: string // default 'migrations'
+  table?: string // default 'migration'
   migrations: MigrationItem[]
 }) {
   const db = options.db
@@ -57,7 +57,7 @@ values
 
 export function migrateDown(options: {
   db: DBInstance
-  table?: string // default 'migrations'
+  table?: string // default 'migration'
   name: string
   throw?: boolean // throw error if the migration is not found, default false
 }) {
@@ -92,7 +92,7 @@ export function migrateDown(options: {
  */
 export function migrateDownUntil(options: {
   db: DBInstance
-  table?: string // default 'migrations'
+  table?: string // default 'migration'
   name: string
   throw?: boolean // throw error if the migration is not found, default false
 }) {

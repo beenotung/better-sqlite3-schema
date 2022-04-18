@@ -1,5 +1,8 @@
 import readline from 'readline'
 import { DBInstance } from './helpers'
+import { DefaultMigrationTable } from './migrate'
+
+export const DefaultSkipTables = [DefaultMigrationTable]
 
 export type ArchiveTableMeta = {
   tableName: string
@@ -15,11 +18,11 @@ export function exportArchive(
   db: DBInstance,
   options?: {
     onLine?: (line: string) => void
-    skipTables?: string[]
+    skipTables?: string[] // default ['migration']
   },
 ): void {
   const onLine = options?.onLine || defaultOnLine
-  const skipTables = options?.skipTables
+  const skipTables = options?.skipTables || DefaultSkipTables
 
   let select_table = db.prepare(/* sql */ `
 select name, sql
@@ -66,6 +69,7 @@ export function importArchive(
   db: DBInstance,
   options?: {
     rl?: readline.Interface
+    skipTables?: string[] // default ['migration']
     // for progress report
     onTable?: (meta: ArchiveTableMeta) => void
   },
@@ -78,6 +82,7 @@ export function importArchive(
       terminal: false,
     })
   const onTable = options?.onTable
+  const skipTables = options?.skipTables || DefaultSkipTables
 
   function parseTableMeta(line: string) {
     const meta: ArchiveTableMeta = JSON.parse(line)
@@ -92,12 +97,14 @@ export function importArchive(
       return
     }
 
-    const fields = keys.join(',')
-    const values = keys.map(key => '?').join(',')
-    let sql = `insert into ${tableName} (${fields}) values (${values})`
-    let insert = db.prepare(sql)
-    if (tableName === 'migration') {
+    let insert: { run: (...args: any[]) => any }
+    if (skipTables.includes(tableName)) {
       insert = { run: () => null } as any
+    } else {
+      const fields = keys.join(',')
+      const values = keys.map(key => '?').join(',')
+      const sql = `insert into ${tableName} (${fields}) values (${values})`
+      insert = db.prepare(sql)
     }
 
     let i = 0
