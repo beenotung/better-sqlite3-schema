@@ -56,9 +56,13 @@
     "typescript": "^4.3.5"
   },
   "peerDependencies": {
+    "@types/better-sqlite3": "^7.4.0",
     "@types/integer": "^4.0.1"
   },
   "peerDependenciesMeta": {
+    "@types/better-sqlite3": {
+      "optional": true
+    },
     "@types/integer": {
       "optional": true
     }
