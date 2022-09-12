@@ -27,11 +27,6 @@
     "mocha": "ts-mocha test/*.spec.ts",
     "prepublishOnly": "run-s mocha build"
   },
-  "husky": {
-    "hook": {
-      "pre-commit": "npm run format"
-    }
-  },
   "directories": {
     "test": "test"
   },
@@ -50,7 +45,6 @@
     "@types/mocha": "^9.0.0",
     "@types/node": "*",
     "chai": "^4.3.4",
-    "husky": "^7.0.1",
     "mk-package": "^1.0.1",
     "mocha": "^9.0.3",
     "npm-run-all": "^4.1.5",
