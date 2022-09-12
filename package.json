@@ -61,6 +61,14 @@
     "ts-node": "^10.2.1",
     "typescript": "^4.3.5"
   },
+  "peerDependencies": {
+    "@types/integer": "^4.0.1"
+  },
+  "peerDependenciesMeta": {
+    "@types/integer": {
+      "optional": true
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/beenotung/better-sqlite3-schema.git"
