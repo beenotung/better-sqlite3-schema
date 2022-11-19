@@ -27,9 +27,23 @@ create table if not exists ${table} (
 , name text not null
 , up text not null
 , down text not null
-, is_multiple_statements integer default 0 not null
 );
 `)
+  if (
+    !db.queryFirstCell<number>(`
+select
+count(*) as count
+from sqlite_master
+where type = 'table'
+  and name = '${table}'
+  and sql like '%is_multiple_statements%'
+`)
+  ) {
+    db.run(`
+alter table ${table}
+add column is_multiple_statements integer default 0 not null
+`)
+  }
   const select = db.prepare(`
 select id from ${table}
 where name = ?
