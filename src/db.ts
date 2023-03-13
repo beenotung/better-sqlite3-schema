@@ -1,4 +1,4 @@
-import DB, { BetterSqlite3Helper } from 'better-sqlite3-helper'
+import DB, { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
 
 export function newDB(
   options: BetterSqlite3Helper.DBOptions,

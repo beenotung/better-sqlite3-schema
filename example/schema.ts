@@ -1,6 +1,12 @@
 import { startTimer } from '@beenotung/tslib/node'
-import DB from 'better-sqlite3-helper'
-import { cacheAllRefFields, DeduplicatedTableSchema, getTableFields, makeSchemaScanner, TableSchema } from '../src'
+import DB from '@beenotung/better-sqlite3-helper'
+import {
+  cacheAllRefFields,
+  DeduplicatedTableSchema,
+  getTableFields,
+  makeSchemaScanner,
+  TableSchema,
+} from '../src'
 import { dbfile, iterateSamples, sampleCount } from './sample'
 
 export namespace JsonData {
@@ -126,12 +132,10 @@ export const schemas = {
   postImgSchema,
 }
 
-Object.values(schemas)
-  .forEach(schema => {
-    Object.assign(schema, tableOptions)
-    cacheAllRefFields(schema)
-  })
-
+Object.values(schemas).forEach(schema => {
+  Object.assign(schema, tableOptions)
+  cacheAllRefFields(schema)
+})
 
 function test() {
   scanSchema()
