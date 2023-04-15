@@ -180,7 +180,7 @@ function makeInlineGetCachedRefId(refField: RefFieldSchema) {
     ${field} === undefined || ${field} === null
       ? null
       : ${cache}.get(${field} as string, (fieldData: string) => {
-          const row = ${select}.get(fieldData)
+          const row = ${select}.get(fieldData) as SingleResult
           return row
             ? row["${idField}"]
             : ${insert}.run(fieldData).lastInsertRowid
@@ -296,7 +296,7 @@ export function makeImports(
 ): string {
   const imports: string[] = [
     `import { Statement } from 'better-sqlite3'`,
-    `import { SqliteDataType, Int } from 'better-sqlite3-schema'`,
+    `import { SqliteDataType, Int, SingleResult } from 'better-sqlite3-schema'`,
     ...(extraImports || []),
   ]
   const hasCache = schemas.some(schema =>
