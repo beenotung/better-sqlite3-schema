@@ -6,6 +6,10 @@ const db = createDB({
   file: 'db.sqlite3',
   migrate: false,
 })
+type Name = {
+  id: number
+  name: string
+}
 db.run(`
 create table if not exists "name" (
   "id" integer primary key,
@@ -33,7 +37,9 @@ for (let id = 1; id <= maxId; id++) {
 db.exec(`drop table if exists test`)
 db.exec(`create table test (id integer, name text)`)
 setUnsafeMode(db, true)
-for (let row of db.prepare(`select * from name`).iterate()) {
+for (let row of db
+  .prepare(`select * from name`)
+  .iterate() as IterableIterator<Name>) {
   db.insert('test', row)
 }
 setUnsafeMode(db, false)

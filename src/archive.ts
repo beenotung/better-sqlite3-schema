@@ -1,3 +1,4 @@
+import { RowType } from './types'
 import readline from 'readline'
 import { DBInstance } from './helpers'
 import { DefaultMigrationTable } from './migrate'
@@ -30,14 +31,17 @@ from sqlite_master
 where type = 'table'
 `)
 
-  let table_rows = select_table.all()
+  let table_rows = select_table.all() as RowType[]
   for (let table_row of table_rows) {
-    let tableName = table_row.name
+    let tableName = table_row.name as string
     if (skipTables?.includes(tableName)) {
       continue
     }
-    let createTable = table_row.sql
-    let count = db.prepare(`select count(*) from ${tableName}`).pluck().get()
+    let createTable = table_row.sql as string
+    let count = db
+      .prepare(`select count(*) from ${tableName}`)
+      .pluck()
+      .get() as number
     let firstRow = db.prepare(`select * from ${tableName} limit 1`).get() || {}
     let keys = Object.keys(firstRow)
     let headers: ArchiveTableMeta = {
@@ -49,7 +53,9 @@ where type = 'table'
     onLine(JSON.stringify(headers))
     let K = keys.length
     let cols = new Array(K) // reuse the same array to reduce memory consumption
-    for (let row of db.prepare(`select * from ${tableName}`).iterate()) {
+    for (let row of db
+      .prepare(`select * from ${tableName}`)
+      .iterate() as IterableIterator<RowType>) {
       for (let i = 0; i < K; i++) {
         cols[i] = row[keys[i]]
       }

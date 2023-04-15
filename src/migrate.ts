@@ -1,4 +1,5 @@
 import { DBInstance } from './helpers'
+import { SingleResult } from './types'
 
 export const DefaultMigrationTable = 'migration'
 
@@ -77,15 +78,15 @@ export function migrateDown(options: {
 }) {
   const db = options.db
   const table = options.table || DefaultMigrationTable
-  const row: null | {
-    id: number
-    down: string
-    is_multiple_statements: 1 | 0
-  } = db
+  const row = db
     .prepare(
       `select id, down, is_multiple_statements from ${table} where name = ?`,
     )
-    .get(options.name)
+    .get(options.name) as SingleResult<{
+    id: number
+    down: string
+    is_multiple_statements: 1 | 0
+  }>
   if (!row) {
     if (options.throw) throw new Error('migration not found')
     return
@@ -114,7 +115,7 @@ export function migrateDownUntil(options: {
   const table = options.table || DefaultMigrationTable
   const lastRow = db
     .prepare(`select id from ${table} where name = ?`)
-    .get(options.name)
+    .get(options.name) as SingleResult<{ id: number }>
   if (!lastRow) {
     if (options.throw) throw new Error('migration not found')
     return

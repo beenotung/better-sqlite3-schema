@@ -3,7 +3,7 @@ import DB, { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
 import { IntLike } from 'integer'
 import { Cache, newCache } from './utils/cache'
 import { chain } from './utils/function'
-import { Int } from './types'
+import { Int, RowType, SingleResult } from './types'
 import { newDB } from './db'
 
 export type DB = BetterSqlite3Helper.DBInstance
@@ -194,11 +194,11 @@ function makeDeduplicatedInsertRowFn(
   const deduplicateFields = options.deduplicateFields
   const idField = options.idField
   const select = options.select
-  return row => {
+  return (row): number => {
     const selectArgs = deduplicateFields.map(field => row[field])
-    const matchedRow = select.get(...selectArgs)
+    const matchedRow = select.get(...selectArgs) as SingleResult
     if (matchedRow) {
-      return matchedRow[idField]
+      return matchedRow[idField] as number
     }
     return insertRowFn(row)
   }
@@ -373,9 +373,9 @@ function getRefId(refSqls: InsertRefSqls, fieldData: any): Int | null {
   if (fieldData === undefined || fieldData === null) {
     return null
   }
-  const row = refSqls.select.get(fieldData)
+  const row = refSqls.select.get(fieldData) as SingleResult
   if (row) {
-    return row[refSqls.idField]
+    return row[refSqls.idField] as Int
   }
   return refSqls.insert.run(fieldData).lastInsertRowid
 }
@@ -397,7 +397,7 @@ export type TableColumn = {
 }
 
 export function getTableFields(db: DB, table: string): TableColumn[] {
-  return db.prepare(`PRAGMA table_info("${table}")`).all()
+  return db.prepare(`PRAGMA table_info("${table}")`).all() as TableColumn[]
 }
 
 export type SqliteMasterRow = {
@@ -412,15 +412,19 @@ export function getTableIndices(db: DB, table: string): SqliteMasterRow[] {
     .prepare(
       `select * from sqlite_master where type = 'index' and tbl_name = ?`,
     )
-    .all(table)
+    .all(table) as SqliteMasterRow[]
 }
 
 export function getAllTables(db: DB): SqliteMasterRow[] {
-  return db.prepare(`select * from sqlite_master where type = 'table'`).all()
+  return db
+    .prepare(`select * from sqlite_master where type = 'table'`)
+    .all() as SqliteMasterRow[]
 }
 
 export function getAllIndices(db: DB): SqliteMasterRow[] {
-  return db.prepare(`select * from sqlite_master where type = 'index'`).all()
+  return db
+    .prepare(`select * from sqlite_master where type = 'index'`)
+    .all() as SqliteMasterRow[]
 }
 
 export function removeTableIndices(db: DB, table: string) {
@@ -653,7 +657,7 @@ function makeGetRefValueFn(refField: CacheOptions): GetRefValueFn {
 }
 
 function getRefValue(select: Statement, field: string, fieldId: Id) {
-  return select.get(fieldId)[field]
+  return (select.get(fieldId) as SingleResult)?.[field]
 }
 
 function makeCachedGetRefValueFn(cache: Cache<any>): GetRefValueFn {
@@ -759,11 +763,12 @@ export function makeSelectJoin(
 }
 
 function makeGetSelectJoin(sql: Statement, field: string) {
-  return (fieldId: string) => sql.get(fieldId)?.[field]
+  return (fieldId: string) => (sql.get(fieldId) as RowType)?.[field]
 }
 
 function makeAllSelectJoin(sql: Statement, field: string) {
-  return (fieldId: string) => sql.all(fieldId).map(row => row[field])
+  return (fieldId: string) =>
+    (sql.all(fieldId) as RowType[]).map(row => row[field])
 }
 
 export function* iterateRows<T>(select: (offset: number) => T, count: number) {
@@ -825,9 +830,9 @@ export function loadAllRefCache<T>(
   const cache: Record<string | number, T> = {}
   for (const row of db
     .prepare(`select ${idField}, ${field} from ${field}`)
-    .iterate()) {
-    const id = row[idField]
-    cache[id] = row[field]
+    .iterate() as IterableIterator<RowType>) {
+    const id = row[idField] as number
+    cache[id] = row[field] as T
   }
   return cache
 }
@@ -885,10 +890,10 @@ export function makeCachedPreparedRefFns(
     if (value in val_cache) {
       return val_cache[value]
     }
-    const row = select_id_statement.get(value)
+    const row = select_id_statement.get(value) as SingleResult
     let id: Int
     if (row) {
-      id = row[idFields]
+      id = row[idFields] as Int
     } else {
       id = insert_statement.run(value).lastInsertRowid
     }
@@ -901,7 +906,7 @@ export function makeCachedPreparedRefFns(
     if (id in id_cache) {
       return id_cache[id]
     }
-    const row = select_val_statement.get(id)
+    const row = select_val_statement.get(id) as SingleResult
     if (!row) {
       console.error(`unknown "${field}" id:`, id)
       throw new Error(`unknown "${field}" id`)
@@ -912,7 +917,7 @@ export function makeCachedPreparedRefFns(
   }
 
   function populateCache() {
-    for (const row of select_all_statement.all()) {
+    for (const row of select_all_statement.all() as any[]) {
       const id = row[idFields]
       const val = row[field]
       id_cache[id] = val
@@ -949,10 +954,10 @@ export function makePreparedRefFns(
 
   /** select from existing record or insert and return new id */
   function getRefId(value: string): Int {
-    const row = select_id_statement.get(value)
+    const row = select_id_statement.get(value) as SingleResult
     let id: Int
     if (row) {
-      id = row[idFields]
+      id = row[idFields] as Int
     } else {
       id = insert_statement.run(value).lastInsertRowid
     }
@@ -961,7 +966,7 @@ export function makePreparedRefFns(
 
   function getRefValue(id: IntLike) {
     id = id as string
-    const row = select_val_statement.get(id)
+    const row = select_val_statement.get(id) as SingleResult
     if (!row) {
       console.error(`unknown "${field}" id:`, id)
       throw new Error(`unknown "${field}" id`)
