@@ -157,7 +157,7 @@ function autoCreateTable(db: DB, schema: TableSchema) {
   if (!schema.autoCreateTable) {
     return
   }
-  const fields = schema.fields || defaultTableFields
+  const fields: Record<string, string> = schema.fields || defaultTableFields
   toRefIdFieldNames(schema).forEach(field => (fields[field] = 'integer'))
   const bodySqls = Object.entries(fields).map(nameAndType =>
     nameAndType.join(' '),
