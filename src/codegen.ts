@@ -299,13 +299,14 @@ export function makeImports(
     `import { SqliteDataType, Int, SingleResult } from 'better-sqlite3-schema'`,
     ...(extraImports || []),
   ]
-  const hasCache = schemas.some(schema =>
-    schema.refFields?.some(refField => {
-      if (typeof refField === 'string') {
-        return schema.cacheFields?.includes(refField)
-      }
-      return refField.cacheSize
-    }),
+  const hasCache = schemas.some(
+    schema =>
+      schema.refFields?.some(refField => {
+        if (typeof refField === 'string') {
+          return schema.cacheFields?.includes(refField)
+        }
+        return refField.cacheSize
+      }),
   )
   if (hasCache) {
     imports.push(`import { newCache } from 'better-sqlite3-schema'`)
