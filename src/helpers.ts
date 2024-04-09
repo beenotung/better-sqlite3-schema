@@ -1,5 +1,5 @@
 import { Statement } from 'better-sqlite3'
-import DB, { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
+import { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
 import { IntLike } from 'integer'
 import { Cache, newCache } from './utils/cache'
 import { chain } from './utils/function'
