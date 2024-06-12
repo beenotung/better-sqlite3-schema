@@ -34,21 +34,21 @@
     "dist"
   ],
   "dependencies": {
-    "@beenotung/better-sqlite3-helper": "^4.1.4",
-    "better-sqlite3": "^10.0.0",
-    "tslib": "^2.6.2"
+    "@beenotung/better-sqlite3-helper": "^4.1.6",
+    "better-sqlite3": "^10.1.0",
+    "tslib": "^2.6.3"
   },
   "devDependencies": {
     "@beenotung/tslib": "^22.3.0",
     "@types/better-sqlite3": "^7.6.10",
     "@types/integer": "^4.0.3",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^20.12.12",
+    "@types/node": "^20.14.2",
     "chai": "^4.4.1",
     "mk-package": "^1.0.2",
     "mocha": "^10.4.0",
     "npm-run-all": "^4.1.5",
-    "prettier": "^3.2.5",
+    "prettier": "^3.3.2",
     "rimraf": "^5.0.7",
     "ts-mocha": "^10.0.0",
     "ts-node": "^10.9.2",
