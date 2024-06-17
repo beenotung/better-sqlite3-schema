@@ -34,8 +34,8 @@
     "dist"
   ],
   "dependencies": {
-    "@beenotung/better-sqlite3-helper": "^4.1.6",
-    "better-sqlite3": "^10.1.0",
+    "@beenotung/better-sqlite3-helper": "^4.1.7",
+    "better-sqlite3": "^11.0.0",
     "tslib": "^2.6.3"
   },
   "devDependencies": {
