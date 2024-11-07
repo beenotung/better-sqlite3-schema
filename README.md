@@ -28,7 +28,7 @@ interface Post {
 
 Sample table schema:
 ```typescript
-import { TableSchema } from '.'
+import { TableSchema } from 'better-sqlite3-schema'
 
 const threadSchema: TableSchema = {
   table: 'thread',
