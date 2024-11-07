@@ -7,6 +7,7 @@ Migrate (nested and multi-dimensional) json data to/from sqlite database with be
 ## Usage Example
 
 Sample json data type:
+
 ```typescript
 interface Thread {
   tid: number
@@ -27,6 +28,7 @@ interface Post {
 ```
 
 Sample table schema:
+
 ```typescript
 import { TableSchema } from 'better-sqlite3-schema'
 
@@ -72,13 +74,16 @@ const postImgSchema: TableSchema = {
 The functional approach allows one to compose customizable helper functions at runtime.
 
 Explore the dataset and auto built schema with
+
 - `makeSchemaScanner()`
 
 Compose insert functions with
+
 - `makeInsertRowFnFromSchema()`
 - `makeDeduplicatedInsertRowFnFromSchema()`
 
 Compose select functions with
+
 - `makeSelectRowFnFromSchema()`
 - `makeSelectRefFieldArray()`
 - `makeGetRefValueFnFromSchema()`
@@ -97,21 +102,31 @@ The code generation approach allows one to compose customizable helper functions
 Each line is a compact json text.
 
 Sample text:
+
 ```json
-{"timestamp":1600713130016,"type":"request","userAgent":"Mozilla/5.0 (Linux; Android 10; LIO-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Mobile Safari/537.36","referer":"https://www.example.net/sw.js","protocol":"https","host":"www.example.net","method":"GET","url":"/build/p-7794655c.js"}
+{
+  "timestamp": 1600713130016,
+  "type": "request",
+  "userAgent": "Mozilla/5.0 (Linux; Android 10; LIO-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Mobile Safari/537.36",
+  "referer": "https://www.example.net/sw.js",
+  "protocol": "https",
+  "host": "www.example.net",
+  "method": "GET",
+  "url": "/build/p-7794655c.js"
+}
 ```
 
 When stored into sqlite3, the data are normalized into multiple tables to avoid duplication, e.g. only storing the full text of each type of user agent and url once.
 
 File size in varies format:
 
-| storage | size | size compared with plain text | Remark |
-|---|---|---|---|
-| plain text | 8256M | - | |
-| sqlite without index | 920M | 11.1% | |
-| zip of non-indexed sqlite file | 220M | 2.7% | 23.9% of sqlite3 file |
-| sqlite with indices | 1147M | 13.9% | +24% of sqlite file |
-| zip of indexed sqlite file | 268M | 3.2% | 23.4% of indexed sqlite3 file |
+| storage                        | size  | size compared with plain text | Remark                        |
+| ------------------------------ | ----- | ----------------------------- | ----------------------------- |
+| plain text                     | 8256M | -                             |                               |
+| sqlite without index           | 920M  | 11.1%                         |                               |
+| zip of non-indexed sqlite file | 220M  | 2.7%                          | 23.9% of sqlite3 file         |
+| sqlite with indices            | 1147M | 13.9%                         | +24% of sqlite file           |
+| zip of indexed sqlite file     | 268M  | 3.2%                          | 23.4% of indexed sqlite3 file |
 
 Time used to import:
 
@@ -127,7 +142,7 @@ Optimization used:
 - `PRAGMA synchronous = OFF`
 - `PRAGMA journal_mode = MEMORY`
 - `PRAGMA cache_size = ${(200 * 1000 ** 2) / 4}`
-(default page size is 4K, we largely increase the cache_size to avoid massive tedious disk write)
+  (default page size is 4K, we largely increase the cache_size to avoid massive tedious disk write)
 
 **Remark**:
 
@@ -138,7 +153,6 @@ and remove indices (then VACUUM) for archive file.
 
 It takes 4.9s to build the indices;
 and 16.3s to vacuum the database after removal of indices.
-
 
 ### Sample 2: Online Forum Data
 
@@ -154,11 +168,11 @@ Same as the dataset used in [binary-object](https://github.com/beenotung/binary-
 
 File size in varies format:
 
-| storage | size |
-|---|---|
-| json text | 843M |
-| sqlite3 with index | 669M |
-| sqlite3 without index | 628M |
+| storage                      | size |
+| ---------------------------- | ---- |
+| json text                    | 843M |
+| sqlite3 with index           | 669M |
+| sqlite3 without index        | 628M |
 | zip of sqlite3 without index | 171M |
 
 **Remark**:
