@@ -77,5 +77,10 @@
   "bugs": {
     "url": "https://github.com/beenotung/better-sqlite3-schema/issues"
   },
-  "homepage": "https://github.com/beenotung/better-sqlite3-schema#readme"
+  "homepage": "https://github.com/beenotung/better-sqlite3-schema#readme",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
+  }
 }
